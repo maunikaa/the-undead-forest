@@ -330,13 +330,6 @@ def setup_db():
                    )
                    """)
     cursor.execute("""
-                   CREATE TABLE IF NOT EXISTS server_settings (
-                       guild_id INTEGER PRIMARY_KEY,
-                       submission_channel_id INTEGER,
-                       response_channel_id INTEGER
-                   )
-                   """)
-    cursor.execute("""
                    CREATE TABLE IF NOT EXISTS pending_claims (
                        message_id INTEGER PRIMARY_KEY,
                        user_id INTEGER NOT NULL,
@@ -344,6 +337,25 @@ def setup_db():
                        prompt_id TEXT NOT NULL,
                        proof_url TEXT NOT NULL,
                        points INTEGER NOT NULL
+                   )
+                   """)
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS books (
+                       id INTEGER PRIMARY_KEY,
+                       user_id INTEGER NOT NULL,
+                       title TEXT NOT NULL,
+                       author TEXT NOT NULL,
+                       page_count INTEGER NOT NULL,
+                       rating INTEGER,
+                       points INTEGER NOT NULL,
+                       logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                   )
+                   """)
+    cursor.execute("""
+                   CREATE TABLE IF NOT EXISTS server_settings (
+                       guild_id INTEGER PRIMARY_KEY,
+                       submission_channel_id INTEGER,
+                       response_channel_id INTEGER
                    )
                    """)
     connection.commit()
@@ -414,7 +426,15 @@ def sync_get_and_clear_pending_claim(message_id: int):
         cursor.execute("DELETE FROM pending_claims WHERE message_id=?", (message_id,))
         connection.commit()
         connection.close()
-    return row      
+    return row
+
+def sync_log_book(user_id: int, title: str, author: str, page_count: int, rating: int | None, points: int):
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("INSERT INTO books (user_id, title, author, page_count, rating, points) VALUES (?, ?, ?, ?, ?, ?)", (user_id, title, author, page_count, rating, points))
+    cursor.execute("UPDATE users SET points = points + ? WHERE user_id = ?", (points, user_id))
+    connection.commit()
+    connection.close()   
 
 def sync_reset_user_stats(user_id: int):
     connection = get_db()
@@ -451,6 +471,7 @@ async def approve_claim(uid, loc, pid, url, pts): return await asyncio.to_thread
 async def advance_user_level(uid, idx): return await asyncio.to_thread(sync_advance_user_level, uid, idx)
 async def save_pending_claim(mid, uid, loc, pid, url, pts): return await asyncio.to_thread(sync_save_pending_claim, mid, uid, loc, pid, url, pts)
 async def get_and_clear_pending_claim(mid): return await asyncio.to_thread(sync_get_and_clear_pending_claim, mid)
+async def log_book(uid, title, author, pgs, rating, pts): return await asyncio.to_thread(sync_log_book, uid, title, author, pgs, rating, pts)
 async def reset_user_stats(uid): return await asyncio.to_thread(sync_reset_user_stats, uid)
 async def set_guild_channel(gid, channel, cid): return await asyncio.to_thread(sync_set_guild_channel, gid, channel, cid)
 async def get_guild_settings(gid): return await asyncio.to_thread(sync_get_guild_settings, gid)
@@ -841,8 +862,53 @@ async def claim_command(
         ephemeral=True
     )
     
+
+# ============================================================
+# Log Books
+# ============================================================
+
+@bot.tree.command(name="log_book", description="Log finished books to earn points!")
+@app_commands.describe(
+    title="Title of the book",
+    author="Author of the book",
+    pages="Total page count",
+    rating="Optional rating of the book (out of 5 stars)"
+)
+@app_commands.choices(rating=[
+    app_commands.Choice(name="⭐ 1 Star", value=1),
+    app_commands.Choice(name="⭐⭐ 2 Stars", value=2),
+    app_commands.Choice(name="⭐⭐⭐ 3 Stars", value=3),
+    app_commands.Choice(name="⭐⭐⭐⭐ 4 Stars", value=4),
+    app_commands.Choice(name="⭐⭐⭐⭐⭐ 5 Stars", value=5),  
+])
+async def log_book_cmd(
+  interaction: discord.Interaction,
+  title: str,
+  author: str,
+  pages: int,
+  rating: int| None = None  
+):
+    if pages <= 0:
+        await interaction.response.send_message("❌ Page count must be greater than 0.", ephemeral=True)
+        return
     
+    awarded_points = max(5, pages // 10)
     
+    await log_book(interaction.user.id, title, author, pages, rating, awarded_points)
+    _, total_points = await get_user_stats(interaction.user.id)
+    
+    stars = f"| Rating: {'⭐' * rating}" if rating else ""
+    embed = discord.Embed(
+        title="📖 Book Logged!",
+        description=f"**{title}** by *{author}*\nPages: `{pages}`{stars}",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Points Earned", value=f"{awarded_points} points", inline=True)
+    embed.add_field(name="Total Points", value=f"{total_points} points", inline=True)
+    await interaction.response.send_message(embed=embed)
+    
+
+
     
     
 
