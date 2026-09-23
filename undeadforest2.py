@@ -12,13 +12,9 @@ from discord import Color
 from dotenv import load_dotenv
 
 # TODO:
-# - finish buttons DONE
-# - set up slash commands for locations DONE
-# - set up claim slash command (integrate w/ channel cmds) DONE
 # - set up multiple img slots for claim cmd
-# - 
-# - set up book logging slash cmd
 # - set up leaderboard (multiple views)
+# - finish book log view cmd
 
 load_dotenv()
 
@@ -446,7 +442,13 @@ def sync_log_book(user_id: int, title: str, author: str, page_count: int, rating
     cursor.execute("INSERT INTO books (user_id, title, author, page_count, rating, points) VALUES (?, ?, ?, ?, ?, ?)", (user_id, title, author, page_count, rating, points))
     cursor.execute("UPDATE users SET points = points + ? WHERE user_id = ?", (points, user_id))
     connection.commit()
-    connection.close()   
+    connection.close() 
+    
+def sync_get_user_books(user_id: int):
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT title, author, page_count, rating, points, logged_at FROM books WHERE user_id=? ORDER BY id DESC", (user_id,))
+    return cursor.fetchall()
 
 def sync_reset_user_stats(user_id: int):
     connection = get_db()
@@ -486,6 +488,7 @@ async def advance_user_level(uid, idx): return await asyncio.to_thread(sync_adva
 async def save_pending_claim(mid, uid, loc, pid, url, pts): return await asyncio.to_thread(sync_save_pending_claim, mid, uid, loc, pid, url, pts)
 async def get_and_clear_pending_claim(mid): return await asyncio.to_thread(sync_get_and_clear_pending_claim, mid)
 async def log_book(uid, title, author, pgs, rating, pts): return await asyncio.to_thread(sync_log_book, uid, title, author, pgs, rating, pts)
+async def get_user_books(uid): return await asyncio.to_thread(sync_get_user_books, uid)
 async def reset_user_stats(uid): return await asyncio.to_thread(sync_reset_user_stats, uid)
 async def set_guild_channel(gid, channel, cid): return await asyncio.to_thread(sync_set_guild_channel, gid, channel, cid)
 async def get_guild_settings(gid): return await asyncio.to_thread(sync_get_guild_settings, gid)
@@ -698,7 +701,7 @@ class ViewLocationPrompts(discord.ui.View):
         embed.set_footer(text=f"Level {self.current_page + 1} of {self.total_pages} • Command: /{loc.get('command', 'draw')}")
         return embed
     
-    @discord.ui.button(label="◀ Previous Location", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="◀ Previous Location", style=discord.ButtonStyle.secondary, custom_id="prev_loc_btn")
     async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current_page > 0:
             self.current_page -= 1
@@ -706,7 +709,7 @@ class ViewLocationPrompts(discord.ui.View):
             embed = await self.build_embed()
             await interaction.response.edit_message(embed=embed, view=self)
     
-    @discord.ui.button(label="Next Location ▶", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Next Location ▶", style=discord.ButtonStyle.secondary, custom_id="next_loc_btn")
     async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current_page < self.total_pages - 1:
             self.current_page += 1
@@ -714,6 +717,72 @@ class ViewLocationPrompts(discord.ui.View):
             embed = await self.build_embed()
             await interaction.response.edit_message(embed=embed, view=self)
         
+
+# ============================================================
+# Book Log View 
+# ============================================================
+
+class BookLogView(discord.ui.View):
+    def __init__(self, books: list, target_name: str, target_avatar_url: str, page_size: int = 5):
+        super().__init__(timeout=120)
+        self.books = books
+        self.target_name = target_name
+        self.target_avatar_url = target_avatar_url
+        self.page_size = page_size
+        self.current_page = 0
+        self.total_pages = max(1, (len(books) + page_size - 1) // page_size)
+        self.update_buttons()
+        
+    def update_buttons(self):
+        self.prev_btn.disabled = self.current_page == 0
+        self.next_btn.disabled = self.current_page >= self.total_pages - 1
+    
+    def build_embed(self) -> discord.Embed:
+        embed = discord.Embed(
+            title=f"📚 Survivor Book Log: {self.target_name}",
+            description=f"Total Books Logged: **{len(self.books)}**",
+            color=discord.Color.greyple(),
+        )
+        
+        start_idx = self.current_page * self.page_size
+        end_idx = start_idx + self.page_size
+        page_books = self.books[start_idx:end_idx]
+        
+        for i, row in enumerate(page_books, start=start_idx + 1):
+            title, author, pages, rating, pts, logged_at = row
+            stars = f" | {'⭐' * rating}" if rating else ""
+            date_str = logged_at.split()[0] if logged_at else "Unknown Date"
+            
+            embed.add_field(
+                name=f"{i}. {title}",
+                value=(
+                    f"**Author:** {author}\n"
+                    f"**Pages:** `{pages}`{stars}\n"
+                    f"**Points Earned:** `+{pts} points • Logged on {date_str}"
+                ),
+                inline=False,
+            )
+            
+        embed.set_footer(text=f"Page {self.current_page + 1} of {self.total_pages}")
+        return embed
+
+    @discord.ui.button(label="◀ Previous", style=discord.ButtonStyle.secondary, custom_id="prev_books_btn")
+    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.update_buttons()
+            embed = await self.build_embed()
+            await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="Next ▶", style=discord.ButtonStyle.secondary, custom_id="next_book_btn")
+    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            self.update_buttons()
+            embed = await self.build_embed()
+            await interaction.response.edit_message(embed=embed, view=self)  
+    
+    
 
 
 
@@ -1040,6 +1109,29 @@ async def log_book_cmd(
     await interaction.response.send_message(embed=embed)
     
 
+# ============================================================
+# View Books
+# ============================================================
+
+@bot.tree.command(name="view_books", description="View a list of all the books you have logged")
+async def view_books_cmd(interaction: discord.Interaction):
+    target = interaction.user
+    books = await get_user_books(target.id)
+    
+    if not books:
+        await interaction.response.send_message("📖 You haven't logged any books yet! Use '/log_book' to log your first book!", ephemeral=True)
+        return
+    
+    view = BookLogView(
+        books=books,
+        target_name=target.display_name,
+        target_avatar_url=target.display_avatar.url,
+    )
+    
+    if view.total_pages == 1:
+        await interaction.response.send_message(embed=view.build_embed())
+    else:
+        await interaction.response.send_message(embed=view.build_embed(), view=view)
 
     
     
