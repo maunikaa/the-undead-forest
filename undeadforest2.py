@@ -378,6 +378,17 @@ def sync_get_user_stats(user_id: int) -> tuple[int, int]:
     connection.close()
     return 0,0
 
+def sync_get_profile_data(user_id: int):
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT current_location_idx, points FROM users WHERE user_id=?", (user_id,))
+    user_row = cursor.fetchone() or (0,0)
+    cursor.execute("SELECT COUNT(*), COALESCE(SUM(page_count), 0) FROM books WHERE user_id=?", (user_id,))
+    book_row = cursor.fetchone()
+    cursor.execute("SELECT COUNT(*) FROM completed_prompts WHERE user_id=?", (user_id,))
+    prompts_completed = cursor.fetchone()[0]
+    return user_row[0], user_row[1], book_row[0], book_row[1], prompts_completed
+
 def sync_get_prompt_statuses(user_id: int, location_id: str):
     connection = get_db()
     cursor = connection.cursor()
@@ -442,6 +453,7 @@ def sync_reset_user_stats(user_id: int):
     cursor.execute("UPDATE users SET current_location_idx = 0, points = 0 WHERE user_id=?", (user_id,))
     cursor.execute("DELETE from active_prompts WHERE user_id=?", (user_id,))
     cursor.execute("DELETE from completed_prompts WHERE user_id=?", (user_id,))
+    cursor.execute("DELETE from books WHERE user_id=?", (user_id,))
     connection.commit()
     connection.close()
     
@@ -465,6 +477,7 @@ def sync_get_guild_settings(guild_id: int) -> tuple[int | None, int | None]:
 # Async Wrappers 
 # ============================================================ 
 async def get_user_stats(uid): return await asyncio.to_thread(sync_get_user_stats, uid)
+async def get_profile_data(uid): return await asyncio.to_thread(sync_get_profile_data, uid)
 async def get_prompt_statuses(uid, loc): return await asyncio.to_thread(sync_get_prompt_statuses, uid, loc)
 async def add_active_prompts(uid, loc, pid): return await asyncio.to_thread(sync_add_active_prompt, uid, loc, pid)
 async def approve_claim(uid, loc, pid, url, pts): return await asyncio.to_thread(sync_approve_claim, uid, loc, pid, url, pts)
@@ -692,6 +705,31 @@ async def on_ready():
             f"Command sync error: {error}"
         )
 """    
+
+
+# ============================================================
+# Profile
+# ============================================================
+
+@bot.tree.command(name="profile", description="View your progress, current level, and stats")
+async def profile_cmd(interaction: discord.Interaction, user: discord.Member | None = None):
+    target = user or interaction.user
+    loc_index, points, book_count, pages_read, prompts_done = await get_profile_data(target.id)
+    total_prompts = sum(len(loc["prompts"]) for loc in LOCATIONS)
+    
+    current_loc_name = LOCATIONS[loc_index]["name"] if loc_index < len(LOCATIONS) else "Ultimate Survivor"
+    
+    embed = discord.Embed(title=f"🛡️ Survivor Profile: {target.display_name}", color=discord.Color.blurple())
+    embed.add_field(name="Current Location", value=current_loc_name, inline=False)
+    embed.add_field(name="Total Points", value=f"⭐ `{points}` points", inline=True)
+    embed.add_field(name="Prompts Cleared", value=f"📜 `{prompts_done}` / `{total_prompts}`", inline=True)
+    embed.add_field(name="Books Read", value=f"📚 `{book_count}`", inline=True)
+    embed.add_field(name="Pages Read", value=f"📄 `{pages_read}`", inline=True)
+    
+    await interaction.response.send_message(embed=embed)
+    
+
+
 
 # ============================================================
 # Draw Prompts
