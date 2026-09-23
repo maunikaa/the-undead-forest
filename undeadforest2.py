@@ -4,6 +4,7 @@ import sqlite3
 import random
 import datetime
 import re
+import math
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -645,6 +646,78 @@ class ClaimReview(discord.ui.View):
         
 
 # ============================================================
+# Page View for Prompts
+# ============================================================
+
+class ViewLocationPrompts(discord.ui.View):
+    def __init__(self, user_id: int, user_loc_index: int, initial_index: int = 0):
+        super().__init__(timeout=120)
+        self.user_id = user_id
+        self.user_loc_index = user_loc_index
+        self.current_page = initial_index
+        self.total_pages = len(LOCATIONS)
+        self.update_buttons()
+        
+    def update_buttons(self):
+        self.prev_btn.disabled = self.current_page == 0
+        self.next_btn.disabled = self.current_page >= self.total_pages - 1
+        
+    async def build_embed(self) -> discord.Embed:
+        loc = LOCATIONS[self.current_page]
+        active, completed = await get_prompt_statuses(self.user_id, loc["id"])
+        is_unlocked = self.current_page <= self.user_loc_index
+        
+        embed = discord.Embed(
+            title=f"Location {self.current_page + 1}: {loc['name']}",
+            description=loc.get("description", loc['story']),
+            color=discord.Color.dark_teal() if is_unlocked else discord.Color.dark_red(),
+        )
+        
+        if not is_unlocked:
+            embed.add_field(
+                name="🔒 Location Locked",
+                value="You must get through previous locations before unlocking these prompts!",
+                inline=False,
+            )
+        else:
+            for idx, p in enumerate(loc['prompts'], start=1):
+                pid = p["id"]
+                if pid in completed:
+                    status=f"✅ **Completed** (+{p['points']} points)\n> {p['text']}"
+                elif pid in active:
+                    status=f"⏳ **In Progress** (+{p['points']} points)\n> {p['text']}"
+                else:
+                    status=f"❌ **Undiscovered** (+{p['points']} points)"
+                    
+                embed.add_field(
+                    name=f"Prompt {idx} ({pid})",
+                    value=status,
+                    inline=False
+                )
+        
+        embed.set_footer(text=f"Level {self.current_page + 1} of {self.total_pages} • Command: /{loc.get('command', 'draw')}")
+        return embed
+    
+    @discord.ui.button(label="◀ Previous Location", style=discord.ButtonStyle.secondary)
+    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.update_buttons()
+            embed = await self.build_embed()
+            await interaction.response.edit_message(embed=embed, view=self)
+    
+    @discord.ui.button(label="Next Location ▶", style=discord.ButtonStyle.secondary)
+    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            self.update_buttons()
+            embed = await self.build_embed()
+            await interaction.response.edit_message(embed=embed, view=self)
+        
+
+
+
+# ============================================================
 # Bot Setup & Initialization
 # ============================================================
 
@@ -811,6 +884,27 @@ async def lair_cmd(interaction: discord.Interaction):
 @bot.tree.command(name="festival", description="Draw a prompt from The Festival Grounds")
 async def festival_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "festival-grounds")   
+
+
+# ============================================================
+# View Prompts Command
+# ============================================================
+
+@bot.tree.command(name="view_prompts", description="View prompts by location and check your progress",)
+async def view_prompts_cmd(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    current_index, _ = await get_user_stats(user_id)
+    
+    start_page = min(current_index, len(LOCATIONS) - 1)
+    
+    view = ViewLocationPrompts(
+        user_id=user_id,
+        user_loc_index=current_index,
+        initial_index=start_page
+    )
+    
+    embed = await view.build_embed()
+    await interaction.response.send_message(embed=embed, view=view)
 
 
 # ============================================================
