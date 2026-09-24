@@ -1,4 +1,5 @@
 # The Undead Forest
+<img width="864" height="1821" alt="image" src="https://github.com/user-attachments/assets/6f1eb1c1-60ec-4064-b13d-2ce6c2a244bd" />
 
 A readathon bot created for discord.gg/VnNnzB545
 
