@@ -407,7 +407,7 @@ def sync_approve_claim(user_id: int, location_id: str, prompt_id: str, proof_url
     cursor = connection.cursor()
     cursor.execute("DELETE FROM active_prompts WHERE user_id=? AND location_id=? AND prompt_id=?", (user_id, location_id, prompt_id))
     cursor.execute("INSERT INTO completed_prompts (user_id, location_id, prompt_id, proof_url, points) VALUES (?, ?, ?, ?, ?)", (user_id, location_id, prompt_id, proof_url, points))
-    cursor.execute("UPDATE users SET points = points + ? WHERE user_id=?", (points, user_id))
+    cursor.execute("UPDATE users SET points = COALESCE(points, 0) + ? WHERE user_id=?", (points, user_id))
     connection.commit()
     connection.close()
     
