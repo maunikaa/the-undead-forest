@@ -33,17 +33,17 @@ LOCATIONS = [
         "command": "cabin",
         "prompts": [
             {
-                "id": "cabin-1",
+                "id": "Cabin Prompt 1",
                 "text": "Read a book you’ve been putting off",
                 "points": 100
             },
             {
-                "id": "cabin-2",
+                "id": "Cabin Prompt 2",
                 "text": "Finish a book you nearly DNFed",
                 "points": 100
             },
             {
-                "id": "cabin-3",
+                "id": "Cabin Prompt 3",
                 "text": "Participate in 2 sprints",
                 "points": 100
             },
@@ -56,17 +56,17 @@ LOCATIONS = [
         "command": "town",
         "prompts": [
             {
-                "id": "town-1",
+                "id": "Town Prompt 1",
                 "text": "Read and log a book with a cover that’s warm toned",
                 "points": 200
             },
             {
-                "id": "town-2",
+                "id": "Town Prompt 2",
                 "text": "Share a halloween song that reminds you of a book you logged",
                 "points": 200
             },
             {
-                "id": "town-3",
+                "id": "Town Prompt 3",
                 "text": "Make a halloween moodboard for a logged book (the book doesn’t need to match entirely, the vibes matter!)",
                 "points": 200
             },
@@ -79,17 +79,17 @@ LOCATIONS = [
         "command": "tower",
         "prompts": [
             {
-                "id": "tower-1",
-                "text": "Tower Option 1",
+                "id": "Tower Prompt 1",
+                "text": "Read 100 pages of a horror book after getting a mod to agree to hold your hand through it",
                 "points": 300
             },
             {
-                "id": "tower-2",
+                "id": "Tower Prompt 2",
                 "text": "Read 100 pages of a thriller book while in a sprint",
                 "points": 300
             },
             {
-                "id": "tower-3",
+                "id": "Tower Prompt 3",
                 "text": "Read and log a 100+ page mystery book",
                 "points": 300
             },
@@ -102,27 +102,27 @@ LOCATIONS = [
         "command": "trail",
         "prompts": [
             {
-                "id": "trail-1",
+                "id": "Trail Prompt 1",
                 "text": "Read a book recommended to you",
                 "points": 400
             },
             {
-                "id": "trail-2",
+                "id": "Trail Prompt 2",
                 "text": "Write a nice review about a book (three sentences minimum)",
                 "points": 400
             },
             {
-                "id": "trail-3",
+                "id": "Trail Prompt 3",
                 "text": "Write a critical review about a book (three sentences minimum)",
                 "points": 400
             },
             {
-                "id": "trail-4",
+                "id": "Trail Prompt 4",
                 "text": "Have someone choose the book you read from three options with each one being from a different genre",
                 "points": 400
             },
             {
-                "id": "trail-5",
+                "id": "Trail Prompt 5",
                 "text": "Read and log a book with something sweet on the cover",
                 "points": 400
             },
@@ -135,28 +135,28 @@ LOCATIONS = [
         "command": "hideout",
         "prompts": [
             {
-                "id": "hideout-1",
-                "text": "Hideout Option 1",
+                "id": "Hideout Prompt 1",
+                "text": "Participate in five sprints",
                 "points": 500
             },
             {
-                "id": "hideout-2",
-                "text": "Hideout Option 2",
+                "id": "Hideout Prompt 2",
+                "text": "Share your favorite female character and explain why you gravitate towards them",
                 "points": 500
             },
             {
-                "id": "hideout-3",
-                "text": "Hideout Option 3",
+                "id": "Hideout Prompt 3",
+                "text": "Read a book with a strong female lead",
                 "points": 500
             },
             {
-                "id": "hideout-4",
-                "text": "Hideout Option 4",
+                "id": "Hideout Prompt 4",
+                "text": "Finish and log 3 new books",
                 "points": 500
             },
             {
-                "id": "hideout-5",
-                "text": "Hideout Option 5",
+                "id": "Hideout Prompt 5",
+                "text": "Read a book with a major plot twist",
                 "points": 500
             },
         ],  
@@ -168,28 +168,28 @@ LOCATIONS = [
         "command": "cemetery",
         "prompts": [
             {
-                "id": "cemetery-1",
-                "text": "Cemetery Option 1",
+                "id": "Cemetery Prompt 1",
+                "text": "Read a paranormal book recommended by a mod",
                 "points": 600
             },
             {
-                "id": "cemetery-2",
-                "text": "Cemetery Option 2",
+                "id": "Cemetery Prompt 2",
+                "text": "Read and log a book with ghosts (minimum 200 pages)",
                 "points": 600
             },
             {
-                "id": "cemetery-3",
-                "text": "Cemetery Option 3",
+                "id": "Cemetery Prompt 3",
+                "text": "Do six hours worth of sprints while reading a paranormal book",
                 "points": 600
             },
             {
-                "id": "cemetery-4",
-                "text": "Cemetery Option 4",
+                "id": "Cemetery Prompt 4",
+                "text": "For thirty minutes, hang out with a mod in VC and listen to scary sounds",
                 "points": 600
             },
             {
-                "id": "cemetery-5",
-                "text": "Cemetery Option 5",
+                "id": "Cemetery Prompt 5",
+                "text": "Read 200 pages of a classic gothic book",
                 "points": 600
             },
         ],  
@@ -201,38 +201,38 @@ LOCATIONS = [
         "command": "lair",
         "prompts": [
             {
-                "id": "lair-1",
-                "text": "Lair Option 1",
+                "id": "Lair Prompt 1",
+                "text": "Participate in five evening sprints in your time zone that lasted an hour minimum",
                 "points": 700
             },
             {
-                "id": "lair-2",
-                "text": "Lair Option 2",
+                "id": "Lair Prompt 2",
+                "text": "Read a book where vampires and humans co-exist",
                 "points": 700
             },
             {
-                "id": "lair-3",
-                "text": "Lair Option 3",
+                "id": "Lair Prompt 3",
+                "text": "Read and log a book where its universe contains three species or more",
                 "points": 700
             },
             {
-                "id": "lair-4",
-                "text": "Lair Option 4",
+                "id": "Lair Prompt 4",
+                "text": "Have a friendly debate with a grove member about which monster would be better as a companion",
                 "points": 700
             },
             {
-                "id": "lair-5",
-                "text": "Lair Option 5",
+                "id": "Lair Prompt 5",
+                "text": "Read a book where a human falls in love with a monstrous character",
                 "points": 700
             },
             {
-                "id": "lair-6",
-                "text": "Lair Option 6",
+                "id": "Lair Prompt 6",
+                "text": "Create a team of six fictional characters that you would trust to monster hunt with you",
                 "points": 700
             },
             {
-                "id": "lair-7",
-                "text": "Lair Option 7",
+                "id": "Lair Prompt 7",
+                "text": "Pick a creature from a book you’ve logged and explain why their actions make them belong in the creature’s lair",
                 "points": 700
             },
         ],  
@@ -244,38 +244,38 @@ LOCATIONS = [
         "command": "festival",
         "prompts": [
             {
-                "id": "festival-1",
-                "text": "Festival Option 1",
+                "id": "Festival Prompt 1",
+                "text": "Read a book where halloween is disliked by character, explain their reasoning and whether you think it’s valid or not",
                 "points": 800
             },
             {
-                "id": "festival-2",
-                "text": "Festival Option 2",
+                "id": "Festival Prompt 2",
+                "text": "Read and log a book that’s worth five stars to you and include why in your submission (minimum three sentences)",
                 "points": 800
             },
             {
-                "id": "festival-3",
-                "text": "Festival Option 3",
+                "id": "Festival Prompt 3",
+                "text": "Read and log a 300+ page book with only orange, white and black on the cover",
                 "points": 800
             },
             {
-                "id": "festival-4",
-                "text": "Festival Option 4",
+                "id": "Festival Prompt 4",
+                "text": "Read and log a book that has a playlist in it which includes ten songs or more",
                 "points": 800
             },
             {
-                "id": "festival-5",
-                "text": "Festival Option 5",
+                "id": "Festival Prompt 5",
+                "text": "Create an ensemble of magical fictional characters to star as the main acts in your circus (five characters minimum, more than that is appreciated)",
                 "points": 800
             },
             {
-                "id": "festival-6",
-                "text": "Festival Option 6",
+                "id": "Festival Prompt 6",
+                "text": "Name five grove members you’d want to see as acts in a circus, explain why and what they would do and which one would be the final act",
                 "points": 800
             },
             {
-                "id": "festival-7",
-                "text": "Festival Option 7",
+                "id": "Festival Prompt 7",
+                "text": "Share three songs you’d perform with no shame to the festival grounds audience and include hypothetical outfit(s)",
                 "points": 800
             },
         ],  
@@ -598,7 +598,7 @@ class ClaimReview(discord.ui.View):
         target_channel = interaction.guild.get_channel(response_channel_id) if response_channel_id else interaction.channel
         
         await target_channel.send(
-            f"🎉 <@{user_id}> Your proof for **{location_data['name']}** was **Approved**\n"
+            f"🎉 <@{user_id}> Your proof for **{prompt_id}** was **Approved**\n"
             f"You earned **+{points} points** (Total: `{new_points}` pts)."
         )
         
@@ -806,6 +806,13 @@ bot = PromptBot()
 
 @bot.event
 async def on_ready():
+    await bot.change_presence(
+        status=discord.Status.online,
+        activity=discord.Activity(
+            type=discord.ActivityType.listening, 
+            name="Listening to your screaming"
+        )
+    )
     print(f"Logged in as {bot.user} (Bot ID: {bot.user.id})")
 
 
@@ -907,7 +914,7 @@ async def handle_draw(interaction: discord.Interaction, target_loc_id: str):
     
     draw_embed = discord.Embed(
         title=f"**[{target_data['name']}] Prompt Drawn!**",
-        description=f"📍{chosen['text']}",
+        description=f"📍{chosen['id']}: {chosen['text']}",
         color=discord.Color.dark_blue(),
         timestamp=datetime.datetime.now()
     )
@@ -993,7 +1000,7 @@ async def prompt_autocomplete(interaction: discord.Interaction, current: str) ->
     choices = []
     for p in location_data["prompts"]:
         if p["id"] in active:
-            label = f"[{p['points']} pts] {p['text']}"[:100]
+            label = f"[{p['points']} pts] {p['id']}: {p['text']}"[:100]
             if current.lower() in label.lower():
                 choices.append(app_commands.Choice(name=label, value=p["id"]))
                 
