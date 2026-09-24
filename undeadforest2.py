@@ -34,17 +34,17 @@ LOCATIONS = [
         "prompts": [
             {
                 "id": "cabin-1",
-                "text": "Cabin Option 1",
+                "text": "Read a book you’ve been putting off",
                 "points": 100
             },
             {
                 "id": "cabin-2",
-                "text": "Cabin Option 2",
+                "text": "Finish a book you nearly DNFed",
                 "points": 100
             },
             {
                 "id": "cabin-3",
-                "text": "Cabin Option 3",
+                "text": "Participate in 2 sprints",
                 "points": 100
             },
         ],
@@ -57,17 +57,17 @@ LOCATIONS = [
         "prompts": [
             {
                 "id": "town-1",
-                "text": "Town Option 1",
+                "text": "Read and log a book with a cover that’s warm toned",
                 "points": 200
             },
             {
                 "id": "town-2",
-                "text": "Town Option 2",
+                "text": "Share a halloween song that reminds you of a book you logged",
                 "points": 200
             },
             {
                 "id": "town-3",
-                "text": "Town Option 3",
+                "text": "Make a halloween moodboard for a logged book (the book doesn’t need to match entirely, the vibes matter!)",
                 "points": 200
             },
         ],        
@@ -85,12 +85,12 @@ LOCATIONS = [
             },
             {
                 "id": "tower-2",
-                "text": "Tower Option 2",
+                "text": "Read 100 pages of a thriller book while in a sprint",
                 "points": 300
             },
             {
                 "id": "tower-3",
-                "text": "Tower Option 3",
+                "text": "Read and log a 100+ page mystery book",
                 "points": 300
             },
         ],  
@@ -103,27 +103,27 @@ LOCATIONS = [
         "prompts": [
             {
                 "id": "trail-1",
-                "text": "Trail Option 1",
+                "text": "Read a book recommended to you",
                 "points": 400
             },
             {
                 "id": "trail-2",
-                "text": "Trail Option 2",
+                "text": "Write a nice review about a book (three sentences minimum)",
                 "points": 400
             },
             {
                 "id": "trail-3",
-                "text": "Trail Option 3",
+                "text": "Write a critical review about a book (three sentences minimum)",
                 "points": 400
             },
             {
                 "id": "trail-4",
-                "text": "Trail Option 4",
+                "text": "Have someone choose the book you read from three options with each one being from a different genre",
                 "points": 400
             },
             {
                 "id": "trail-5",
-                "text": "Trail Option 5",
+                "text": "Read and log a book with something sweet on the cover",
                 "points": 400
             },
         ],  
