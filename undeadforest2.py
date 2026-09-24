@@ -482,7 +482,7 @@ def sync_get_leaderboard(metric: str):
         cursor.execute("SELECT user_id, points FROM users ORDER BY points DESC LIMIT 10")
         return cursor.fetchall(), "points"
     elif metric == "books":
-        cursor.execute("SELECT user_id, COUNT(*) as ct FROM books GROUP by user_id ORDER BY cnt DESC LIMIT 10")
+        cursor.execute("SELECT user_id, COUNT(*) as ct FROM books GROUP by user_id ORDER BY ct DESC LIMIT 10")
         return cursor.fetchall(), "books"
     elif metric == "pages":
         cursor.execute("SELECT user_id, SUM(page_count) as total_pages FROM books GROUP BY user_id ORDER by total_pages DESC LIMIT 10")
@@ -772,7 +772,7 @@ class BookLogView(discord.ui.View):
                 value=(
                     f"**Author:** {author}\n"
                     f"**Pages:** `{pages}`{stars}\n"
-                    f"**Points Earned:** `+{pts} points • Logged on {date_str}"
+                    f"**Points Earned:** `+{pts}` points • Logged on {date_str}"
                 ),
                 inline=False,
             )
@@ -810,7 +810,7 @@ class LeaderboardView(discord.ui.View):
         options=[
             discord.SelectOption(label="Most Points", value="points", emoji="⭐"),
             discord.SelectOption(label="Most Books Read", value="books", emoji="📚"),
-            discord.SelectOption(label="Most Pages Read", value="books", emoji="📄"),
+            discord.SelectOption(label="Most Pages Read", value="pages", emoji="📄"),
         ]
     )
     async def select_category(self, interaction: discord.Interaction, select: discord.ui.Select):
@@ -826,7 +826,7 @@ class LeaderboardView(discord.ui.View):
         if not data:
             embed.description = "No Entries Yet!"
         else:
-            lines = [f"**{i+1}**. <@uid> - `{score}` {unit}" for i, (uid, score) in enumerate(data)]
+            lines = [f"**{i+1}**. <@{uid}> - `{score}` {unit}" for i, (uid, score) in enumerate(data)]
             embed.description = "\n".join(lines)
             
         await interaction.response.edit_message(embed=embed, view=self)
@@ -1196,8 +1196,8 @@ async def view_books_cmd(interaction: discord.Interaction):
 @bot.tree.command(name="leaderboard", description="View the rankings for most points, most books, and most pages")
 async def leaderboard_cmd(interaction: discord.Interaction):
     data, unit = await get_leaderboard("points")
-    embed = discord.embed(title="⭐ Most Points Leaderboard", color=discord.Color.gold())
-    lines = [f"**{i+1}**. <@uid> - `{score}` {unit}" for i, (uid, score) in enumerate(data)] if data else ["No entries yet!"]
+    embed = discord.Embed(title="⭐ Most Points Leaderboard", color=discord.Color.gold())
+    lines = [f"**{i+1}**. <@{uid}>  - `{score}` {unit}" for i, (uid, score) in enumerate(data)] if data else ["No entries yet!"]
     embed.description = "\n".join(lines)
     
     await interaction.response.send_message(embed=embed, view=LeaderboardView())
