@@ -474,6 +474,19 @@ def sync_get_guild_settings(guild_id: int) -> tuple[int | None, int | None]:
     cursor.execute("SELECT submission_channel_id, response_channel_id FROM server_settings WHERE guild_id = ?", (guild_id,))
     row = cursor.fetchone()
     return (row[0], row[1]) if row else (None, None)
+
+def sync_get_leaderboard(metric: str):
+    connection = get_db()
+    cursor = connection.cursor()
+    if metric == "points":
+        cursor.execute("SELECT user_id, points FROM users ORDER BY points DESC LIMIT 10")
+        return cursor.fetchall(), "points"
+    elif metric == "books":
+        cursor.execute("SELECT user_id, COUNT(*) as ct FROM books GROUP by user_id ORDER BY cnt DESC LIMIT 10")
+        return cursor.fetchall(), "books"
+    elif metric == "pages":
+        cursor.execute("SELECT user_id, SUM(page_count) as total_pages FROM books GROUP BY user_id ORDER by total_pages DESC LIMIT 10")
+        return cursor.fetchall(), "pages"   
     
 
 # ============================================================
@@ -493,6 +506,7 @@ async def reset_user_stats(uid): return await asyncio.to_thread(sync_reset_user_
 async def set_guild_channel(gid, channel, cid): return await asyncio.to_thread(sync_set_guild_channel, gid, channel, cid)
 async def get_guild_settings(gid): return await asyncio.to_thread(sync_get_guild_settings, gid)
 async def reset_user_status(uid): return await asyncio.to_thread(sync_reset_user_stats, uid)
+async def get_leaderboard(metric): return await asyncio.to_thread(sync_get_leaderboard, metric)
 
 
 # ============================================================
@@ -782,7 +796,41 @@ class BookLogView(discord.ui.View):
             embed = await self.build_embed()
             await interaction.response.edit_message(embed=embed, view=self)  
     
-    
+
+# ============================================================
+# Leaderboard View 
+# ============================================================
+
+class LeaderboardView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=120)
+        
+    @discord.ui.select(
+        placeholder="Choose Leaderboard Category",
+        options=[
+            discord.SelectOption(label="Most Points", value="points", emoji="⭐"),
+            discord.SelectOption(label="Most Books Read", value="books", emoji="📚"),
+            discord.SelectOption(label="Most Pages Read", value="books", emoji="📄"),
+        ]
+    )
+    async def select_category(self, interaction: discord.Interaction, select: discord.ui.Select):
+        metric = select.values[0]
+        data, unit = await get_leaderboard(metric)
+        title_map = {
+            "points": "⭐ Most Points Leaderboard",
+            "books": "📚 Most Books Read Leaderboard",
+            "pages": "📄 Most Pages Read Leaderboard",
+        }
+        
+        embed = discord.Embed(title=title_map[metric], color=discord.Color.gold())
+        if not data:
+            embed.description = "No Entries Yet!"
+        else:
+            lines = [f"**{i+1}**. <@uid> - `{score}` {unit}" for i, (uid, score) in enumerate(data)]
+            embed.description = "\n".join(lines)
+            
+        await interaction.response.edit_message(embed=embed, view=self)
+        
 
 
 
@@ -1139,6 +1187,20 @@ async def view_books_cmd(interaction: discord.Interaction):
         await interaction.response.send_message(embed=view.build_embed())
     else:
         await interaction.response.send_message(embed=view.build_embed(), view=view)
+        
+
+# ============================================================
+# Leaderboard
+# ============================================================
+
+@bot.tree.command(name="leaderboard", description="View the rankings for most points, most books, and most pages")
+async def leaderboard_cmd(interaction: discord.Interaction):
+    data, unit = await get_leaderboard("points")
+    embed = discord.embed(title="⭐ Most Points Leaderboard", color=discord.Color.gold())
+    lines = [f"**{i+1}**. <@uid> - `{score}` {unit}" for i, (uid, score) in enumerate(data)] if data else ["No entries yet!"]
+    embed.description = "\n".join(lines)
+    
+    await interaction.response.send_message(embed=embed, view=LeaderboardView())
 
     
     

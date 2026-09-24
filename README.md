@@ -8,14 +8,14 @@ A readathon bot created for discord.gg/VnNnzB545
 ### **User commands:**
 
 - /profile - view user stats: points, books logged, pages read, etc.
-- /cabin - draw prompt from abandoned cabin
-- /town - draw prompt from halloween town
-- /tower - draw prompt from tower of terror
-- /trail - draw prompt from trick or treat trail
-- /hideout - draw prompt from final girl hideout
-- /cemetery - draw prompt from haunted cemetery
-- /lair - draw prompt from creature’s lair
-- /festival - draw prompt from festival grounds
+- /cabin - draw prompt from The Abandoned Cabin
+- /town - draw prompt from Halloween Town
+- /tower - draw prompt from Tower of Terror
+- /trail - draw prompt from The Trick or Treat Trail
+- /hideout - draw prompt from The Final Girl Hideout
+- /cemetery - draw prompt from The Haunted Cemetery
+- /lair - draw prompt from The Creature’s Lair
+- /festival - draw prompt from The Festival Grounds
 - /view_prompts - view drawn/completed prompts by location
 - /claim - submit proof for prompt you’ve drawn (will go to submission channel where admins can approve/deny)
 - /log_book - log a completed book w/ title, author, page count, and rating (rewards 1 point for every 10 pages)
