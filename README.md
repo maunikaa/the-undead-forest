@@ -3,7 +3,7 @@
 
 A readathon bot created for discord.gg/VnNnzB545
 
-## **Command list: **
+## **Command list:**
 
 ### **User commands:**
 
