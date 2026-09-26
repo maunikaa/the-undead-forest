@@ -632,10 +632,10 @@ class ClaimReview(discord.ui.View):
         for child in self.children:
             child.disabled = True
         
-        embed = interaction.message.embeds[0]
-        embed.color = discord.Color.dark_green()
-        embed.set_footer(text=f"Approved by {interaction.user.display_name}")
-        await interaction.response.edit_message(embed=embed, view=self)
+        embeds = interaction.message.embeds[0]
+        embeds[0].color = discord.Color.dark_green()
+        embeds[0].set_footer(text=f"Approved by {interaction.user.display_name}")
+        await interaction.response.edit_message(embeds=embeds, view=self)
         
         _, response_channel_id = await get_guild_settings(interaction.guild_id)
         target_channel = interaction.guild.get_channel(response_channel_id) if response_channel_id else interaction.channel
@@ -674,10 +674,10 @@ class ClaimReview(discord.ui.View):
         for child in self.children:
             child.disabled = True
         
-        embed = interaction.message.embeds
-        embed[0].color = discord.Color.dark_red()
-        embed[0].set_footer(text=f"Denied by {interaction.user.display_name}")
-        await interaction.response.edit_message(embed=embed, view=self)
+        embeds = interaction.message.embeds
+        embeds[0].color = discord.Color.dark_red()
+        embeds[0].set_footer(text=f"Denied by {interaction.user.display_name}")
+        await interaction.response.edit_message(embeds=embeds, view=self)
         
         #channel = interaction.channel
         _, response_channel_id = await get_guild_settings(interaction.guild_id)
