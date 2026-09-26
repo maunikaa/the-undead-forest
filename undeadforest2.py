@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 
 # TODO:
 # - set up multiple img slots for claim cmd
-# - add admin cmd to 
+# - add admin cmds to add/remove points
+# - add admin cmds to add prompts to active prompts
 
 load_dotenv()
 
@@ -1134,7 +1135,14 @@ async def claim_command(
         return
     
     attachments = [p for p in [proof_1, proof_2, proof_3, proof_4] if p is not None]
-    proof_urls = [a.url for a in attachments]
+    # proof_urls = [a.url for a in attachments]
+    files_to_send = []
+    for i, a in enumerate(attachments, start=1):
+        ext = a.filename.split(".")[-1] if "." in a.filename else "png"
+        clean_name = f"proof_{i}.{ext}"
+        file_obj = await a.to_file(filename=clean_name)
+        files_to_send.append(file_obj)
+        
     gallery_url = "https://discord.com"
 
     embed = discord.Embed(
@@ -1148,12 +1156,12 @@ async def claim_command(
         color = discord.Color.gold(),
     )
     
-    embed.set_image(url=attachments[0].url)
+    embed.set_image(url=f"attachment://{files_to_send[0].filename}")
     embeds_to_send = [embed]
     
-    for a in attachments[1:]:
+    for f in files_to_send[1:]:
         extra_embed = discord.Embed(url=gallery_url)
-        extra_embed.set_image(url=a.url)
+        extra_embed.set_image(url=f"attachment://{f.filename}")
         embeds_to_send.append(extra_embed)
     
     """
@@ -1163,8 +1171,9 @@ async def claim_command(
         embed.add_field(name="Proof File", value=f"[{proof.filename}]({proof.url})", inline=False)
     """
         
-    review_msg = await submission_channel.send(embeds=embeds_to_send, view = ClaimReview())
-    await asyncio.to_thread(sync_save_pending_claim, review_msg.id, user_id, location, prompt, proof_urls, prompt_obj["points"])
+    review_msg = await submission_channel.send(embeds=embeds_to_send, files=files_to_send, view = ClaimReview())
+    permanent_urls = [a.url for a in review_msg.attachments]
+    await asyncio.to_thread(sync_save_pending_claim, review_msg.id, user_id, location, prompt, permanent_urls, prompt_obj["points"])
     
     await interaction.response.send_message(
         "✅ Your claim was submitted for review! You will be pinged once approved or denied!",
