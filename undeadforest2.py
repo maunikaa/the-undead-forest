@@ -1227,7 +1227,7 @@ async def user_books_autocomplete(interaction: discord.Interaction, current: str
         choices.append(app_commands.Choice(name=display_label, value=str(book_id)))
     return choices
 
-@bot.tree.commands(name="delete_book", description="Delete an entry from your reading log and deduct its points")
+@bot.tree.command(name="delete_book", description="Delete an entry from your reading log and deduct its points")
 @app_commands.describe(book="Select one of your logged books to delete")
 @app_commands.autocomplete(book=user_books_autocomplete)
 async def delete_books_cmd(interaction: discord.Interaction, book: str):
