@@ -13,8 +13,8 @@ from dotenv import load_dotenv
 
 # TODO:
 # - set up multiple img slots for claim cmd
-# - set up leaderboard (multiple views)
-# - finish book log view cmd
+# - add cmd to delete books
+# - add admin cmd to 
 
 load_dotenv()
 
@@ -450,6 +450,29 @@ def sync_get_user_books(user_id: int):
     cursor.execute("SELECT title, author, page_count, rating, points, logged_at FROM books WHERE user_id=? ORDER BY id DESC", (user_id,))
     return cursor.fetchall()
 
+def sync_get_books_autocomplete(user_id: int, current_query: str):
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT id, title, author FROM books where user_id = ? AND title LIKE ? ORDER BY id DESC LIMIT 25", (user_id, f"%{current_query}%"))
+    return cursor.fetchall()
+
+def sync_delete_book(user_id: int, book_id: int):
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT title, points FROM books WHERE id=? AND user_id=?", (book_id, user_id),)
+    row = cursor.fetchone()
+    if not row: 
+        return None
+    title, points = row
+    cursor.execute("DELETE FROM books WHERE id=? AND user_id=?", (book_id, user_id),)
+    cursor.execute("UPDATE users SET points = MAX(0, points-?) WHERE user_id = ?", (points, user_id),)
+    connection.commit()
+    connection.close()
+    cursor.execute("SELECT points FROM users WHERE user_id=?", (user_id,))
+    new_total = cursor.fetchone()[0]
+    return title, points, new_total
+    
+
 def sync_reset_user_stats(user_id: int):
     connection = get_db()
     cursor = connection.cursor()
@@ -502,6 +525,8 @@ async def save_pending_claim(mid, uid, loc, pid, url, pts): return await asyncio
 async def get_and_clear_pending_claim(mid): return await asyncio.to_thread(sync_get_and_clear_pending_claim, mid)
 async def log_book(uid, title, author, pgs, rating, pts): return await asyncio.to_thread(sync_log_book, uid, title, author, pgs, rating, pts)
 async def get_user_books(uid): return await asyncio.to_thread(sync_get_user_books, uid)
+async def get_books_autocomplete(uid, query): return await asyncio.to_thread(sync_get_books_autocomplete, uid, query)
+async def delete_book(uid, bid): return await asyncio.to_thread(sync_delete_book, uid, bid)
 async def reset_user_stats(uid): return await asyncio.to_thread(sync_reset_user_stats, uid)
 async def set_guild_channel(gid, channel, cid): return await asyncio.to_thread(sync_set_guild_channel, gid, channel, cid)
 async def get_guild_settings(gid): return await asyncio.to_thread(sync_get_guild_settings, gid)
@@ -639,7 +664,7 @@ class ClaimReview(discord.ui.View):
         loc_name = loc_match.group(1).strip() if loc_match else "Unknown Location"        
         """
         
-        user_id, loc_id, _, _, _ = data
+        user_id, loc_id, prompt_id, _, _ = data
         location_data = LOCATION_MAP[loc_id]
         
         for child in self.children:
@@ -656,7 +681,7 @@ class ClaimReview(discord.ui.View):
                 
         
         await target_channel.send(
-            f"❌ <@{user_id}> Your proof for **{location_data['name']}** was **Denied**\n"
+            f"❌ <@{user_id}> Your proof for **{prompt_id}** was **Denied**\n"
             f"Please resubmit with the correct proof\n" 
             f"If you would like clarification about why your claim was denied, please ping staff to ask!"
         )
@@ -704,7 +729,7 @@ class ViewLocationPrompts(discord.ui.View):
                 elif pid in active:
                     status=f"⏳ **In Progress** (+{p['points']} points)\n> {p['text']}"
                 else:
-                    status=f"❌ **Undiscovered** (+{p['points']} points)"
+                    status=f"⚠️ **Undiscovered** (+{p['points']} points)"
                     
                 embed.add_field(
                     name=f"Prompt {idx} ({pid})",
@@ -1163,6 +1188,46 @@ async def log_book_cmd(
     embed.add_field(name="Total Points", value=f"{total_points} points", inline=True)
     await interaction.response.send_message(embed=embed)
     
+
+# ============================================================
+# Delete Books
+# ============================================================
+
+async def user_books_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    rows = await get_books_autocomplete(interaction.user.id, current)
+    choices = []
+    for book_id, title, author in rows:
+        display_label = f"{title} by {author}"
+        if len(display_label) > 100:
+            display_label = display_label[:97] + "..."
+        choices.append(app_commands.Choice(name=display_label, value=str(book_id)))
+    return choices
+
+@bot.tree.commands(name="delete_book", description="Delete an entry from your reading log and deduct its points")
+@app_commands.describe(book="Select one of your logged books to delete")
+async def delete_books_cmd(interaction: discord.Interaction, book: str):
+    if not book.isdigit():
+        await interaction.response.send_message("❌ Please select a valid book from your book log", ephemeral=True,)
+        return
+    
+    book_id = int(book)
+    result = delete_book(interaction.user.id, book_id)
+    if not result:
+        await interaction.response.send_message("❌ This book was not found in your log", ephemeral=True)
+        return
+    
+    title, points_lost, new_points = result
+    
+    embed = discord.Embed(
+        title="🔖 Book Log Deleted",
+        description=f"**{title}** has been removed from your book log",
+        color=discord.color.blue()
+    )
+    embed.add_field(name="Points Deducted", value=f"-{points_lost} points", inline=True)
+    embed.add_field(name="Updated Points", value=f"{new_points} points", inline=True)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+
 
 # ============================================================
 # View Books
