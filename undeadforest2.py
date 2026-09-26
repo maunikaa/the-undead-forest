@@ -325,6 +325,7 @@ def setup_db():
                        PRIMARY KEY (user_id, location_id, prompt_id)
                    )
                    """)
+    cursor.execute("DROP TABLE IF EXISTS pending_claims")
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS pending_claims (
                        message_id INTEGER PRIMARY_KEY,
