@@ -456,14 +456,17 @@ def sync_get_books_autocomplete(user_id: int, current_query: str):
     cursor.execute("SELECT id, title, author FROM books where user_id = ? AND title LIKE ? ORDER BY id DESC LIMIT 25", (user_id, f"%{current_query}%"))
     return cursor.fetchall()
 
-def sync_delete_book(user_id: int, book_id: int):
+def sync_delete_book(user_id: int, book_input: int):
     connection = get_db()
     cursor = connection.cursor()
-    cursor.execute("SELECT title, points FROM books WHERE id=? AND user_id=?", (book_id, user_id),)
+    if book_input.digit():
+        cursor.execute("SELECT id, title, points FROM books WHERE id=? AND user_id=?", (int(book_input), user_id),)
+    else:
+        cursor.execute("SELECT id, title, points FROM books WHERE title=? AND user_id=? ORDER BY id DESC LIMIT 1", (book_input, user_id),)
     row = cursor.fetchone()
     if not row: 
         return None
-    title, points = row
+    book_id, title, points = row
     cursor.execute("DELETE FROM books WHERE id=? AND user_id=?", (book_id, user_id),)
     cursor.execute("UPDATE users SET points = MAX(0, points-?) WHERE user_id = ?", (points, user_id),)
     connection.commit()
@@ -1231,12 +1234,7 @@ async def user_books_autocomplete(interaction: discord.Interaction, current: str
 @app_commands.describe(book="Select one of your logged books to delete")
 @app_commands.autocomplete(book=user_books_autocomplete)
 async def delete_books_cmd(interaction: discord.Interaction, book: str):
-    if not book.isdigit():
-        await interaction.response.send_message("❌ Please select a valid book from your book log", ephemeral=True,)
-        return
-    
-    book_id = int(book)
-    result = delete_book(interaction.user.id, book_id)
+    result = delete_book(interaction.user.id, book)
     if not result:
         await interaction.response.send_message("❌ This book was not found in your log", ephemeral=True)
         return
