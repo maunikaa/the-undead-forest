@@ -459,7 +459,7 @@ def sync_get_books_autocomplete(user_id: int, current_query: str):
 def sync_delete_book(user_id: int, book_input: int):
     connection = get_db()
     cursor = connection.cursor()
-    if book_input.digit():
+    if book_input.isdigit():
         cursor.execute("SELECT id, title, points FROM books WHERE id=? AND user_id=?", (int(book_input), user_id),)
     else:
         cursor.execute("SELECT id, title, points FROM books WHERE title=? AND user_id=? ORDER BY id DESC LIMIT 1", (book_input, user_id),)
