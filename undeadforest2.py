@@ -633,7 +633,7 @@ class ClaimReview(discord.ui.View):
         for child in self.children:
             child.disabled = True
         
-        embeds = interaction.message.embeds[0]
+        embeds = interaction.message.embeds
         embeds[0].color = discord.Color.dark_green()
         embeds[0].set_footer(text=f"Approved by {interaction.user.display_name}")
         await interaction.response.edit_message(embeds=embeds, view=self)
