@@ -1162,7 +1162,7 @@ async def claim_command(
         embed.add_field(name="Proof File", value=f"[{proof.filename}]({proof.url})", inline=False)
     """
         
-    review_msg = await submission_channel.send(embed=embeds_to_send, view = ClaimReview())
+    review_msg = await submission_channel.send(embeds=embeds_to_send, view = ClaimReview())
     await asyncio.to_thread(sync_save_pending_claim, review_msg.id, user_id, location, prompt, proof_urls, prompt_obj["points"])
     
     await interaction.response.send_message(
