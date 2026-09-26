@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 
 # TODO:
 # - set up multiple img slots for claim cmd
-# - add cmd to delete books
 # - add admin cmd to 
 
 load_dotenv()
@@ -332,7 +331,7 @@ def setup_db():
                        user_id INTEGER NOT NULL,
                        location_id TEXT NOT NULL,
                        prompt_id TEXT NOT NULL,
-                       proof_url TEXT NOT NULL,
+                       proof_urls TEXT NOT NULL,
                        points INTEGER NOT NULL
                    )
                    """)
@@ -418,17 +417,18 @@ def sync_advance_user_level(user_id: int, new_idx: int):
     connection.commit()
     connection.close()
     
-def sync_save_pending_claim(message_id: int, user_id: int, location_id: str, prompt_id: str, proof_url: str, points: str):
+def sync_save_pending_claim(message_id: int, user_id: int, location_id: str, prompt_id: str, proof_urls: list[str], points: str):
+    joined_urls = "|||".join(proof_urls)
     connection = get_db()
     cursor = connection.cursor()
-    cursor.execute("INSERT INTO pending_claims (message_id, user_id, location_id, prompt_id, proof_url, points) VALUES (?, ?, ?, ?, ?, ?)", (message_id, user_id, location_id, prompt_id, proof_url, points))
+    cursor.execute("INSERT INTO pending_claims (message_id, user_id, location_id, prompt_id, proof_urls, points) VALUES (?, ?, ?, ?, ?, ?)", (message_id, user_id, location_id, prompt_id, joined_urls, points))
     connection.commit()
     connection.close()
     
 def sync_get_and_clear_pending_claim(message_id: int):
     connection = get_db()
     cursor = connection.cursor()
-    cursor.execute("SELECT user_id, location_id, prompt_id, proof_url, points FROM pending_claims WHERE message_id=?", (message_id,))
+    cursor.execute("SELECT user_id, location_id, prompt_id, proof_urls, points FROM pending_claims WHERE message_id=?", (message_id,))
     row = cursor.fetchone()
     if row:
         cursor.execute("DELETE FROM pending_claims WHERE message_id=?", (message_id,))
@@ -549,7 +549,7 @@ class ClaimReview(discord.ui.View):
             await interaction.response.send_message("❌ This claim has already been resolved or cannot be found!", ephemeral=True)
             return
         
-        user_id, loc_id, prompt_id, proof_url, points = data
+        user_id, loc_id, prompt_id, proof_urls_str, points = data
         location_data = LOCATION_MAP[loc_id]
         
         """
@@ -586,7 +586,7 @@ class ClaimReview(discord.ui.View):
         proof_url = embed.image.url or (embed.fields[0].value if embed.fields else "")
         """
         
-        await approve_claim(user_id, loc_id, prompt_id, proof_url, points)
+        await approve_claim(user_id, loc_id, prompt_id, proof_urls_str, points)
         
         current_idx, new_points = await get_user_stats(user_id)
         target_idx = LOCATION_ORDER.index(loc_id)
@@ -670,9 +670,9 @@ class ClaimReview(discord.ui.View):
         for child in self.children:
             child.disabled = True
         
-        embed = interaction.message.embeds[0]
-        embed.color = discord.Color.dark_red()
-        embed.set_footer(text=f"Denied by {interaction.user.display_name}")
+        embed = interaction.message.embeds
+        embed[0].color = discord.Color.dark_red()
+        embed[0].set_footer(text=f"Denied by {interaction.user.display_name}")
         await interaction.response.edit_message(embed=embed, view=self)
         
         #channel = interaction.channel
@@ -1084,7 +1084,10 @@ async def prompt_autocomplete(interaction: discord.Interaction, current: str) ->
 @app_commands.describe(
     location="The location of the prompt",
     prompt="Select from your drawn prompts for your current location",
-    proof="Attach an image to show proof of completion"
+    proof_1="Primary proof of completion (required)",
+    proof_2="Second proof image (optional)",
+    proof_3="Third proof image (optional)",
+    proof_4="Fourth proof image (optional)"
 )
 @app_commands.choices(
     location=[app_commands.Choice(name=loc["name"], value=loc["id"]) for loc in LOCATIONS]
@@ -1094,7 +1097,11 @@ async def claim_command(
     interaction: discord.Interaction,
     location: str,
     prompt: str,
-    proof: discord.Attachment
+    proof_1: discord.Attachment,
+    proof_2: discord.Attachment | None = None,
+    proof_3: discord.Attachment | None = None,
+    proof_4: discord.Attachment | None = None,
+    
 ):
     if not interaction.guild_id:
         await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
@@ -1121,22 +1128,39 @@ async def claim_command(
     if not prompt_obj:
         await interaction.response.send_message("❌ Prompt data not found.", ephemeral=True)
         return
+    
+    attachments = [p for p in [proof_1, proof_2, proof_3, proof_4] if p is not None]
+    proof_urls = [a.url for a in attachments]
+    gallery_url = "https://discord.com"
 
     embed = discord.Embed(
         title="📥 New Prompt Submission",
+        url=gallery_url,
         description=f"**User:** {interaction.user.mention} ({'interaction.user.id'})\n"
                     f"**Location:** {location_data['name']}\n"
+                    f"**Prompt ID:** {prompt_obj['id']}\n"
                     f"**Prompt:** {prompt_obj['text']}\n"
                     f"**Reward:** {prompt_obj['points']} points",
         color = discord.Color.gold(),
     )
+    
+    embed.set_image(url=attachments[0].url)
+    embeds_to_send = [embed]
+    
+    for a in attachments[1:]:
+        extra_embed = discord.Embed(url=gallery_url)
+        extra_embed.set_image(url=a.url)
+        embeds_to_send.append(extra_embed)
+    
+    """
     if proof.content_type and proof.content_type.startswith("image/"):
         embed.set_image(url=proof.url)
     else:
         embed.add_field(name="Proof File", value=f"[{proof.filename}]({proof.url})", inline=False)
+    """
         
-    review_msg = await submission_channel.send(embed=embed, view = ClaimReview())
-    await asyncio.to_thread(sync_save_pending_claim, review_msg.id, user_id, location, prompt, proof.url, prompt_obj["points"])
+    review_msg = await submission_channel.send(embed=embeds_to_send, view = ClaimReview())
+    await asyncio.to_thread(sync_save_pending_claim, review_msg.id, user_id, location, prompt, proof_urls, prompt_obj["points"])
     
     await interaction.response.send_message(
         "✅ Your claim was submitted for review! You will be pinged once approved or denied!",
@@ -1205,6 +1229,7 @@ async def user_books_autocomplete(interaction: discord.Interaction, current: str
 
 @bot.tree.commands(name="delete_book", description="Delete an entry from your reading log and deduct its points")
 @app_commands.describe(book="Select one of your logged books to delete")
+@app_commands.autocomplete(book=user_books_autocomplete)
 async def delete_books_cmd(interaction: discord.Interaction, book: str):
     if not book.isdigit():
         await interaction.response.send_message("❌ Please select a valid book from your book log", ephemeral=True,)
@@ -1227,7 +1252,6 @@ async def delete_books_cmd(interaction: discord.Interaction, book: str):
     embed.add_field(name="Updated Points", value=f"{new_points} points", inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=True)
     
-
 
 # ============================================================
 # View Books
