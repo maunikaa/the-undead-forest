@@ -1309,7 +1309,7 @@ async def user_books_autocomplete(interaction: discord.Interaction, current: str
         book_id = str(row["id"])
         title = row["title"]
         author = row["author"] if "author" in row.keys() else "Unknown"
-        display_label = f"{title} by {author}"
+        display_label = f"{title} by {author}" if author else str(title)
         if len(display_label) > 100:
             display_label = display_label[:97] + "..."
         choices.append(app_commands.Choice(name=display_label, value=str(book_id)))
