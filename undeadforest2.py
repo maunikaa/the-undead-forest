@@ -1301,7 +1301,10 @@ async def log_book_cmd(
 async def user_books_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     rows = await get_books_autocomplete(interaction.user.id, current)
     choices = []
-    for book_id, title, author in rows:
+    for row in rows:
+        book_id = str(row["id"])
+        title = row["title"]
+        author = row["author"] if "author" in row.keys() else "Unknown"
         display_label = f"{title} by {author}"
         if len(display_label) > 100:
             display_label = display_label[:97] + "..."
@@ -1315,6 +1318,13 @@ async def delete_books_cmd(interaction: discord.Interaction, book: str):
     print(f"\n[DEBUG] Running /delete_book")
     print(f"[DEBUG] interaction.user.id: {interaction.user.id} (Type: {type(interaction.user.id)})")
     print(f"[DEBUG] book argument received: '{book}' (Type: {type(book)})")
+    
+    if not book or book.strip().lower() in ("none", ""):
+        await interaction.response.send_message(
+            "⚠️ Please select one of the suggested books from the popup menu rather than typing manually.",
+            ephemeral=True
+        )
+        return
     
     result = await delete_book(interaction.user.id, book)
     if not result:
