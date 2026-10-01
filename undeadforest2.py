@@ -498,6 +498,18 @@ def sync_delete_book(user_id: int | str, book_input: str):
       f"[DELETE ATTEMPT] Received input: '{book_input}' (type: {type(book_input).__name__}) from User ID: {user_int}"
       )
     book_input = book_input.strip()
+    
+    cursor.execute(
+            "SELECT id, title, points_awarded FROM books WHERE user_id = ? OR user_id = ?",
+            (user_int, str(user_int))
+        )
+    user_books = cursor.fetchall()
+    logging.info(f"[DELETE DB CHECK] User {user_int} has {len(user_books)} books in DB: {user_books}")
+
+    if not user_books:
+        logging.warning(f"[DELETE FAILED] User {user_int} has no logged books in the database.")
+        return None
+        
     row = None
     if book_input.isdigit():
         logging.debug(f"[DELETE MATCH] Attempting lookup by numeric ID...")
@@ -571,25 +583,6 @@ def sync_get_leaderboard(metric: str):
     elif metric == "pages":
         cursor.execute("SELECT user_id, SUM(page_count) as total_pages FROM books GROUP BY user_id ORDER by total_pages DESC LIMIT 10")
         return cursor.fetchall(), "pages"   
-    
-    
-with sqlite3.connect(DB_FILE) as conn:
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, user_id, title, typeof(user_id) FROM books")
-    rows = cursor.fetchall()
-
-    logging.info("--- ALL BOOKS IN DB (Total: %d) ---", len(rows))
-    if not rows:
-        logging.warning("The 'books' table is completely empty.")
-    else:
-        for r in rows:
-            logging.info(
-                "Book ID: %s | User ID: %s (%s) | Title: '%s'",
-                r[0],
-                r[1],
-                r[3],
-                r[2],
-            )
     
 
 # ============================================================
