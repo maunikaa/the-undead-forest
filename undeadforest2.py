@@ -1269,10 +1269,16 @@ async def user_books_autocomplete(interaction: discord.Interaction, current: str
 @app_commands.describe(book="Select one of your logged books to delete")
 @app_commands.autocomplete(book=user_books_autocomplete)
 async def delete_books_cmd(interaction: discord.Interaction, book: str):
+    print(f"\n[DEBUG] Running /delete_book")
+    print(f"[DEBUG] interaction.user.id: {interaction.user.id} (Type: {type(interaction.user.id)})")
+    print(f"[DEBUG] book argument received: '{book}' (Type: {type(book)})")
+    
     result = await delete_book(interaction.user.id, book)
     if not result:
         await interaction.response.send_message("❌ This book was not found in your log", ephemeral=True)
         return
+    
+    print(f"[DEBUG] delete_book returned: {result}")
     
     title, points_lost, new_points = result
     
