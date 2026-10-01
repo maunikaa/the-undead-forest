@@ -572,6 +572,25 @@ def sync_get_leaderboard(metric: str):
         cursor.execute("SELECT user_id, SUM(page_count) as total_pages FROM books GROUP BY user_id ORDER by total_pages DESC LIMIT 10")
         return cursor.fetchall(), "pages"   
     
+    
+with sqlite3.connect("undeadforest2.db") as conn:
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id, title, typeof(user_id) FROM books")
+    rows = cursor.fetchall()
+
+    logging.info("--- ALL BOOKS IN DB (Total: %d) ---", len(rows))
+    if not rows:
+        logging.warning("The 'books' table is completely empty.")
+    else:
+        for r in rows:
+            logging.info(
+                "Book ID: %s | User ID: %s (%s) | Title: '%s'",
+                r[0],
+                r[1],
+                r[3],
+                r[2],
+            )
+    
 
 # ============================================================
 # Async Wrappers 
