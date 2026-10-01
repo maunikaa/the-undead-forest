@@ -1306,9 +1306,14 @@ async def user_books_autocomplete(interaction: discord.Interaction, current: str
     rows = await get_books_autocomplete(interaction.user.id, current)
     choices = []
     for row in rows:
-        book_id = str(row["id"])
-        title = row["title"]
-        author = row["author"] if "author" in row.keys() else "Unknown"
+        if isinstance(row, sqlite3.Row) or isinstance(row, dict):
+            book_id = str(row["id"])
+            title = row["title"]
+            author = row["author"] if "author" in row.keys() else "Unknown"
+        else:
+            book_id = str(row[0])
+            title = str(row[1])
+            author = str(row[2]) if len(row) > 2 else "Unknown"
         display_label = f"{title} by {author}" if author else str(title)
         if len(display_label) > 100:
             display_label = display_label[:97] + "..."
