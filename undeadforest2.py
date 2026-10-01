@@ -937,6 +937,7 @@ class LeaderboardView(discord.ui.View):
 # ============================================================
 
 intents = discord.Intents.default()
+intents.message_content = True
 
 class PromptBot(commands.Bot):
     def __init__(self):
