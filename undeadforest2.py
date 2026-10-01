@@ -475,73 +475,6 @@ def sync_get_user_books(user_id: int):
     cursor = connection.cursor()
     cursor.execute("SELECT title, author, page_count, rating, points, logged_at FROM books WHERE user_id=? ORDER BY id DESC", (user_id,))
     return cursor.fetchall()
-
-
-def sync_get_books_autocomplete(user_id: int, current_query: str):
-    
-    connection = get_db()
-    connection.row_factory = sqlite3.Row
-    cursor = connection.cursor()
-    user_int = int(user_id) 
-    logging.info(
-      f"[AUTOCOMPLETE] User: {user_int} | Search Query: '{current_query}'"
-      )
-    cursor.execute("SELECT id, title, author FROM books where (user_id = ? OR user_id = ?) AND (title LIKE ? OR author LIKE ?) ORDER BY id DESC LIMIT 25", (user_id, str(user_id), f"%{current_query}%", f"%{current_query}%"))
-    return cursor.fetchall()
-    logging.info(f"[AUTOCOMPLETE] Found {len(rows)} matching options.")
-
-
-def sync_delete_book(user_id: int | str, book_input: str):
-    connection = get_db()
-    cursor = connection.cursor()
-    user_int = int(user_id)
-    logging.info(
-      f"[DELETE ATTEMPT] Received input: '{book_input}' (type: {type(book_input).__name__}) from User ID: {user_int}"
-      )
-    book_input = book_input.strip()
-    
-    cursor.execute(
-            "SELECT id, title, points FROM books WHERE user_id = ? OR user_id = ?",
-            (user_int, str(user_int))
-        )
-    user_books = cursor.fetchall()
-    logging.info(f"[DELETE DB CHECK] User {user_int} has {len(user_books)} books in DB: {user_books}")
-
-    if not user_books:
-        logging.warning(f"[DELETE FAILED] User {user_int} has no logged books in the database.")
-        return None
-        
-    row = None
-    if book_input.isdigit():
-        logging.debug(f"[DELETE MATCH] Attempting lookup by numeric ID...")
-        cursor.execute("SELECT id, title, points FROM books WHERE id=? AND user_id=?", (int(book_input), user_int, str(user_int)),)
-        row = cursor.fetchone()
-    if not row:
-        logging.debug(f"[DELETE MATCH] Attempting lookup by Title...")
-        cursor.execute("SELECT id, title, points FROM books WHERE LOWER(title)=LOWER(?) AND (user_id=? OR user_id=?) ORDER BY id DESC LIMIT 1", (book_input, user_int, str(user_int)),)
-        row = cursor.fetchone()
-    if not row and " by " in book_input: 
-        logging.debug(
-          f"[DELETE MATCH] Attempting lookup with extracted title: '{title_part}'...")
-        title_part = book_input.rsplit(" by ", 1)[0].strip()
-        cursor.execute("SELECT id, title, points FROM books WHERE LOWER(title)=LOWER(?) AND (user_id=? OR user_id=?) ORDER BY id DESC LIMIT 1", (title_part, user_int, str(user_int)),)
-        row = cursor.fetchone()
-    if not row:
-        logging.warning(
-          f"[DELETE FAILED] No matching record for input '{book_input}'. User books in DB were: {row}")
-        # print(f"[DEBUG delete_book] Book NOT found. User ID: {user_int}, Input was: '{book_input}'")
-        return None
-    target_book_id, title, points = row
-    logging.info(
-        f"[DELETE SUCCESS] Found book ID {target_book_id} ('{title}', {points} pts). Deleting...")
-    cursor.execute("DELETE FROM books WHERE id=?", (target_book_id,))
-    cursor.execute("UPDATE users SET points = MAX(0, points-?) WHERE user_id = ? OR user_id = ?", (points, user_id, str(user_id)),)
-    connection.commit()
-    connection.close()
-    cursor.execute("SELECT points FROM users WHERE user_id=? OR user_id=?", (user_id, str(user_id)),)
-    points_row = cursor.fetchone()
-    new_total = points_row[0] if points_row else 0
-    return title, points, new_total
     
 
 def sync_reset_user_stats(user_id: int):
@@ -599,8 +532,8 @@ async def save_pending_claim(mid, uid, loc, pid, url, pts): return await asyncio
 async def get_and_clear_pending_claim(mid): return await asyncio.to_thread(sync_get_and_clear_pending_claim, mid)
 async def log_book(uid, title, author, pgs, rating, pts): return await asyncio.to_thread(sync_log_book, uid, title, author, pgs, rating, pts)
 async def get_user_books(uid): return await asyncio.to_thread(sync_get_user_books, uid)
-async def get_books_autocomplete(uid, query): return await asyncio.to_thread(sync_get_books_autocomplete, uid, query)
-async def delete_book(uid, bid): return await asyncio.to_thread(sync_delete_book, uid, bid)
+# async def get_books_autocomplete(uid, query): return await asyncio.to_thread(sync_get_books_autocomplete, uid, query)
+# async def delete_book(uid, bid): return await asyncio.to_thread(sync_delete_book, uid, bid)
 async def reset_user_stats(uid): return await asyncio.to_thread(sync_reset_user_stats, uid)
 async def set_guild_channel(gid, channel, cid): return await asyncio.to_thread(sync_set_guild_channel, gid, channel, cid)
 async def get_guild_settings(gid): return await asyncio.to_thread(sync_get_guild_settings, gid)
@@ -1013,7 +946,7 @@ async def on_ready():
 
 @bot.tree.command(name="profile", description="View your progress, current level, and stats")
 async def profile_cmd(interaction: discord.Interaction, user: discord.Member | None = None):
-    target = user or interaction.user
+    target = user 
     loc_index, points, book_count, pages_read, prompts_done = await get_profile_data(target.id)
     total_prompts = sum(len(loc["prompts"]) for loc in LOCATIONS)
     
@@ -1303,60 +1236,6 @@ async def log_book_cmd(
 # Delete Books
 # ============================================================
 
-async def user_books_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    try:
-        rows = await get_books_autocomplete(interaction.user.id, current)
-        choices = []
-        for row in rows:
-            if isinstance(row, sqlite3.Row) or isinstance(row, dict):
-                book_id = str(row["id"])
-                title = row["title"]
-                author = row["author"] if "author" in row.keys() else "Unknown"
-            else:
-                book_id = str(row[0])
-                title = str(row[1])
-                author = str(row[2]) if len(row) > 2 else "Unknown"
-            display_label = f"{title} by {author}" if author else str(title)
-            if len(display_label) > 100:
-                display_label = display_label[:97] + "..."
-            choices.append(app_commands.Choice(name=display_label, value=str(book_id)))
-        return choices
-    except Exception as e:
-        logging.error(f"[ERROR] Exception in user_books_autocomplete: {e}")
-        return []
-
-@bot.tree.command(name="delete_book", description="Delete an entry from your reading log and deduct its points")
-@app_commands.describe(book="Select one of your logged books to delete")
-@app_commands.autocomplete(book=user_books_autocomplete)
-async def delete_books_cmd(interaction: discord.Interaction, book: str):
-    logging.info(f"\n[DEBUG] Running /delete_book")
-    logging.info(f"[DEBUG] interaction.user.id: {interaction.user.id} (Type: {type(interaction.user.id)})")
-    logging.info(f"[DEBUG] book argument received: '{book}' (Type: {type(book)})")
-
-    if not book or book.strip().lower() in ("none", ""):
-        await interaction.response.send_message(
-            "⚠️ Please select one of the suggested books from the popup menu rather than typing manually.",
-            ephemeral=True
-        )
-        return
-    
-    result = await delete_book(interaction.user.id, book)
-    if not result:
-        await interaction.response.send_message("❌ This book was not found in your log", ephemeral=True)
-        return
-    
-    print(f"[DEBUG] delete_book returned: {result}")
-    
-    title, points_lost, new_points = result
-    
-    embed = discord.Embed(
-        title="🔖 Book Log Deleted",
-        description=f"**{title}** has been removed from your book log",
-        color=discord.Color.blue()
-    )
-    embed.add_field(name="Points Deducted", value=f"-{points_lost} points", inline=True)
-    embed.add_field(name="Updated Points", value=f"{new_points} points", inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
     
 
 # ============================================================
