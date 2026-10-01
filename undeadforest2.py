@@ -573,7 +573,7 @@ def sync_get_leaderboard(metric: str):
         return cursor.fetchall(), "pages"   
     
     
-with sqlite3.connect("undeadforest2.db") as conn:
+with sqlite3.connect(get_db()) as conn:
     cursor = conn.cursor()
     cursor.execute("SELECT id, user_id, title, typeof(user_id) FROM books")
     rows = cursor.fetchall()
