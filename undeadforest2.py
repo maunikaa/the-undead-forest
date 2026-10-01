@@ -1329,10 +1329,10 @@ async def user_books_autocomplete(interaction: discord.Interaction, current: str
 @app_commands.describe(book="Select one of your logged books to delete")
 @app_commands.autocomplete(book=user_books_autocomplete)
 async def delete_books_cmd(interaction: discord.Interaction, book: str):
-    print(f"\n[DEBUG] Running /delete_book")
-    print(f"[DEBUG] interaction.user.id: {interaction.user.id} (Type: {type(interaction.user.id)})")
-    print(f"[DEBUG] book argument received: '{book}' (Type: {type(book)})")
-    
+    logging.log(f"\n[DEBUG] Running /delete_book")
+    logging.log(f"[DEBUG] interaction.user.id: {interaction.user.id} (Type: {type(interaction.user.id)})")
+    logging.log(f"[DEBUG] book argument received: '{book}' (Type: {type(book)})")
+
     if not book or book.strip().lower() in ("none", ""):
         await interaction.response.send_message(
             "⚠️ Please select one of the suggested books from the popup menu rather than typing manually.",
