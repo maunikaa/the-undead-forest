@@ -1303,22 +1303,26 @@ async def log_book_cmd(
 # ============================================================
 
 async def user_books_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    rows = await get_books_autocomplete(interaction.user.id, current)
-    choices = []
-    for row in rows:
-        if isinstance(row, sqlite3.Row) or isinstance(row, dict):
-            book_id = str(row["id"])
-            title = row["title"]
-            author = row["author"] if "author" in row.keys() else "Unknown"
-        else:
-            book_id = str(row[0])
-            title = str(row[1])
-            author = str(row[2]) if len(row) > 2 else "Unknown"
-        display_label = f"{title} by {author}" if author else str(title)
-        if len(display_label) > 100:
-            display_label = display_label[:97] + "..."
-        choices.append(app_commands.Choice(name=display_label, value=str(book_id)))
-    return choices
+    try:
+        rows = await get_books_autocomplete(interaction.user.id, current)
+        choices = []
+        for row in rows:
+            if isinstance(row, sqlite3.Row) or isinstance(row, dict):
+                book_id = str(row["id"])
+                title = row["title"]
+                author = row["author"] if "author" in row.keys() else "Unknown"
+            else:
+                book_id = str(row[0])
+                title = str(row[1])
+                author = str(row[2]) if len(row) > 2 else "Unknown"
+            display_label = f"{title} by {author}" if author else str(title)
+            if len(display_label) > 100:
+                display_label = display_label[:97] + "..."
+            choices.append(app_commands.Choice(name=display_label, value=str(book_id)))
+        return choices
+    except Exception as e:
+        print(f"[ERROR] Exception in user_books_autocomplete: {e}")
+        return []
 
 @bot.tree.command(name="delete_book", description="Delete an entry from your reading log and deduct its points")
 @app_commands.describe(book="Select one of your logged books to delete")
