@@ -937,45 +937,34 @@ class LeaderboardView(discord.ui.View):
 # Bot Setup & Initialization
 # ============================================================
 
-# 1. Configure Intents
 intents = discord.Intents.default()
 intents.message_content = True
-
-# Replace with your actual server (Guild) ID as an integer
-TEST_GUILD_ID = 1543413824420315187 
 
 class PromptBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # Initialize database tables and persistent views
+
         setup_db()
         self.add_view(ClaimReview())
-
-        # Fast-sync commands to your test server for instant updates
-        guild_obj = discord.Object(id=TEST_GUILD_ID)
-        self.tree.copy_global_to(guild=guild_obj)
-        synced_guild = await self.tree.sync(guild=guild_obj)
-        logging.info(f"✅ Instantly synced {len(synced_guild)} command(s) to Guild ID: {TEST_GUILD_ID}")
-
-        # Optional: Sync globally for production rollout (takes up to 1 hr to cache)
-        # synced_global = await self.tree.sync()
-        # print(f"Synced {len(synced_global)} global commands.")
-
+        synced = await self.tree.sync()
+        print(f"Synced {len(synced)} global slash commands.")
+    
 bot = PromptBot()
-
+        
 @bot.event
 async def on_ready():
     await bot.change_presence(
         status=discord.Status.online,
         activity=discord.Activity(
-            type=discord.ActivityType.listening, 
+            type=discord.ActivityType.listening,
             name="Listening to your screaming"
+
         )
-    )
-    logging.info(f"Logged in as {bot.user} (Bot ID: {bot.user.id})")
-    
+
+    )   
+logging.info(f"Logged in as {bot.user} (Bot ID: {bot.user.id})")
 
 
 """
