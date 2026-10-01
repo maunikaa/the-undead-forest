@@ -1321,7 +1321,7 @@ async def user_books_autocomplete(interaction: discord.Interaction, current: str
             choices.append(app_commands.Choice(name=display_label, value=str(book_id)))
         return choices
     except Exception as e:
-        print(f"[ERROR] Exception in user_books_autocomplete: {e}")
+        logging.log(f"[ERROR] Exception in user_books_autocomplete: {e}")
         return []
 
 @bot.tree.command(name="delete_book", description="Delete an entry from your reading log and deduct its points")
