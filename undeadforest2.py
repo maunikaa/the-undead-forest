@@ -480,6 +480,7 @@ def sync_get_user_books(user_id: int):
 def sync_get_books_autocomplete(user_id: int, current_query: str):
     
     connection = get_db()
+    connection.row_factory = sqlite3.Row
     cursor = connection.cursor()
     user_int = int(user_id) 
     logging.info(
