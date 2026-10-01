@@ -957,7 +957,7 @@ class PromptBot(commands.Bot):
         guild_obj = discord.Object(id=TEST_GUILD_ID)
         self.tree.copy_global_to(guild=guild_obj)
         synced_guild = await self.tree.sync(guild=guild_obj)
-        print(f"✅ Instantly synced {len(synced_guild)} command(s) to Guild ID: {TEST_GUILD_ID}")
+        logging.info(f"✅ Instantly synced {len(synced_guild)} command(s) to Guild ID: {TEST_GUILD_ID}")
 
         # Optional: Sync globally for production rollout (takes up to 1 hr to cache)
         # synced_global = await self.tree.sync()
@@ -974,7 +974,7 @@ async def on_ready():
             name="Listening to your screaming"
         )
     )
-    print(f"Logged in as {bot.user} (Bot ID: {bot.user.id})")
+    logging.info(f"Logged in as {bot.user} (Bot ID: {bot.user.id})")
     
 
 
