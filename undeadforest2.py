@@ -1351,7 +1351,7 @@ async def delete_books_cmd(interaction: discord.Interaction, book: str):
     embed = discord.Embed(
         title="🔖 Book Log Deleted",
         description=f"**{title}** has been removed from your book log",
-        color=discord.color.blue()
+        color=discord.Color.blue()
     )
     embed.add_field(name="Points Deducted", value=f"-{points_lost} points", inline=True)
     embed.add_field(name="Updated Points", value=f"{new_points} points", inline=True)
