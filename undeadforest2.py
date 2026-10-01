@@ -964,7 +964,7 @@ async def on_ready():
         )
 
     )   
-logging.info(f"Logged in as {bot.user} (Bot ID: {bot.user.id})")
+    logging.info(f"Logged in as {bot.user} (Bot ID: {bot.user.id})")
 
 
 """
