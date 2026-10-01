@@ -937,18 +937,31 @@ class LeaderboardView(discord.ui.View):
 # Bot Setup & Initialization
 # ============================================================
 
+# 1. Configure Intents
 intents = discord.Intents.default()
 intents.message_content = True
+
+# Replace with your actual server (Guild) ID as an integer
+TEST_GUILD_ID = 123456789012345678 
 
 class PromptBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
+        # Initialize database tables and persistent views
         setup_db()
         self.add_view(ClaimReview())
-        synced = await self.tree.sync()
-        print(f"Synced {len(synced)} global slash commands.")
+
+        # Fast-sync commands to your test server for instant updates
+        guild_obj = discord.Object(id=TEST_GUILD_ID)
+        self.tree.copy_global_to(guild=guild_obj)
+        synced_guild = await self.tree.sync(guild=guild_obj)
+        print(f"✅ Instantly synced {len(synced_guild)} command(s) to Guild ID: {TEST_GUILD_ID}")
+
+        # Optional: Sync globally for production rollout (takes up to 1 hr to cache)
+        # synced_global = await self.tree.sync()
+        # print(f"Synced {len(synced_global)} global commands.")
 
 bot = PromptBot()
 
@@ -962,8 +975,6 @@ async def on_ready():
         )
     )
     print(f"Logged in as {bot.user} (Bot ID: {bot.user.id})")
-    synced = await bot.tree.sync()
-    print(f"Synced {len(synced)} global slash commands.")
     
 
 
