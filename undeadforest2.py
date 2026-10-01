@@ -376,6 +376,7 @@ def sync_get_user_stats(user_id: int) -> tuple[int, int]:
     connection.close()
     return 0,0
 
+
 def sync_get_profile_data(user_id: int):
     connection = get_db()
     cursor = connection.cursor()
@@ -387,6 +388,7 @@ def sync_get_profile_data(user_id: int):
     prompts_completed = cursor.fetchone()[0]
     return user_row[0], user_row[1], book_row[0], book_row[1], prompts_completed
 
+
 def sync_get_prompt_statuses(user_id: int, location_id: str):
     connection = get_db()
     cursor = connection.cursor()
@@ -396,12 +398,14 @@ def sync_get_prompt_statuses(user_id: int, location_id: str):
     completed = {row[0] for row in cursor.fetchall()}
     return active, completed
 
+
 def sync_add_active_prompt(user_id: int, location_id: str, prompt_id: str):
     connection = get_db()
     cursor = connection.cursor()
     cursor.execute("INSERT OR IGNORE INTO active_prompts (user_id, location_id, prompt_id) VALUES (?, ?, ?)", (user_id, location_id, prompt_id))
     connection.commit()
     connection.close()
+    
 
 def sync_approve_claim(user_id: int, location_id: str, prompt_id: str, proof_url: str, points: str):
     connection = get_db()
@@ -412,12 +416,14 @@ def sync_approve_claim(user_id: int, location_id: str, prompt_id: str, proof_url
     connection.commit()
     connection.close()
     
+    
 def sync_advance_user_level(user_id: int, new_idx: int):
     connection = get_db()
     cursor = connection.cursor()
     cursor.execute("UPDATE users SET current_location_idx = ? WHERE user_id=?", (new_idx, user_id))
     connection.commit()
     connection.close()
+    
     
 def sync_save_pending_claim(message_id: int, user_id: int, location_id: str, prompt_id: str, proof_urls: list[str], points: str):
     joined_urls = "|||".join(proof_urls)
@@ -426,6 +432,7 @@ def sync_save_pending_claim(message_id: int, user_id: int, location_id: str, pro
     cursor.execute("INSERT INTO pending_claims (message_id, user_id, location_id, prompt_id, proof_urls, points) VALUES (?, ?, ?, ?, ?, ?)", (message_id, user_id, location_id, prompt_id, joined_urls, points))
     connection.commit()
     connection.close()
+    
     
 def sync_get_and_clear_pending_claim(message_id: int):
     connection = get_db()
@@ -438,6 +445,7 @@ def sync_get_and_clear_pending_claim(message_id: int):
         connection.close()
     return row
 
+
 def sync_log_book(user_id: int, title: str, author: str, page_count: int, rating: int | None, points: int):
     connection = get_db()
     cursor = connection.cursor()
@@ -446,35 +454,49 @@ def sync_log_book(user_id: int, title: str, author: str, page_count: int, rating
     connection.commit()
     connection.close() 
     
+    
 def sync_get_user_books(user_id: int):
     connection = get_db()
     cursor = connection.cursor()
     cursor.execute("SELECT title, author, page_count, rating, points, logged_at FROM books WHERE user_id=? ORDER BY id DESC", (user_id,))
     return cursor.fetchall()
 
+
 def sync_get_books_autocomplete(user_id: int, current_query: str):
     connection = get_db()
     cursor = connection.cursor()
-    cursor.execute("SELECT id, title, author FROM books where user_id = ? AND title LIKE ? ORDER BY id DESC LIMIT 25", (user_id, f"%{current_query}%"))
+    user_int = int(user_id) 
+    cursor.execute("SELECT id, title, author FROM books where (user_id = ? OR user_id = ?) AND (title LIKE ? OR author LIKE ?) ORDER BY id DESC LIMIT 25", (user_id, str(user_id), f"%{current_query}%", f"%{current_query}%"))
     return cursor.fetchall()
 
-def sync_delete_book(user_id: int, book_input: int):
+
+def sync_delete_book(user_id: int | str, book_input: str):
     connection = get_db()
     cursor = connection.cursor()
+    user_int = int(user_id)
+    book_input = book_input.strip()
+    row = None
     if book_input.isdigit():
-        cursor.execute("SELECT id, title, points FROM books WHERE id=? AND user_id=?", (int(book_input), user_id),)
-    else:
-        cursor.execute("SELECT id, title, points FROM books WHERE title=? AND user_id=? ORDER BY id DESC LIMIT 1", (book_input, user_id),)
-    row = cursor.fetchone()
-    if not row: 
+        cursor.execute("SELECT id, title, points FROM books WHERE id=? AND user_id=?", (int(book_input), user_int, str(user_int)),)
+        row = cursor.fetchone()
+    if not row:
+        cursor.execute("SELECT id, title, points FROM books WHERE LOWER(title)=LOWER(?) AND (user_id=? OR user_id=?) ORDER BY id DESC LIMIT 1", (book_input, user_int, str(user_int)),)
+        row = cursor.fetchone()
+    if not row and " by " in book_input: 
+        title_part = book_input.rsplit(" by ", 1)[0].strip()
+        cursor.execute("SELECT id, title, points FROM books WHERE LOWER(title)=LOWER(?) AND (user_id=? OR user_id=?) ORDER BY id DESC LIMIT 1", (title_part, user_int, str(user_int)),)
+        row = cursor.fetchone()
+    if not row:
+        print(f"[DEBUG delete_book] Book NOT found. User ID: {user_int}, Input was: '{book_input}'")
         return None
-    book_id, title, points = row
-    cursor.execute("DELETE FROM books WHERE id=? AND user_id=?", (book_id, user_id),)
-    cursor.execute("UPDATE users SET points = MAX(0, points-?) WHERE user_id = ?", (points, user_id),)
+    target_book_id, title, points = row
+    cursor.execute("DELETE FROM books WHERE id=?", (target_book_id,))
+    cursor.execute("UPDATE users SET points = MAX(0, points-?) WHERE user_id = ? OR user_id = ?", (points, user_id, str(user_id)),)
     connection.commit()
     connection.close()
-    cursor.execute("SELECT points FROM users WHERE user_id=?", (user_id,))
-    new_total = cursor.fetchone()[0]
+    cursor.execute("SELECT points FROM users WHERE user_id=? OR user_id=?", (user_id, str(user_id)),)
+    points_row = cursor.fetchone()
+    new_total = points_row[0] if points_row else 0
     return title, points, new_total
     
 
@@ -488,6 +510,7 @@ def sync_reset_user_stats(user_id: int):
     connection.commit()
     connection.close()
     
+    
 def sync_set_guild_channel(guild_id: int, channel_type: str, channel_id: int):
     connection = get_db()
     cursor = connection.cursor()
@@ -496,12 +519,14 @@ def sync_set_guild_channel(guild_id: int, channel_type: str, channel_id: int):
     connection.commit()
     connection.close()    
     
+    
 def sync_get_guild_settings(guild_id: int) -> tuple[int | None, int | None]:
     connection = get_db()
     cursor = connection.cursor()
     cursor.execute("SELECT submission_channel_id, response_channel_id FROM server_settings WHERE guild_id = ?", (guild_id,))
     row = cursor.fetchone()
     return (row[0], row[1]) if row else (None, None)
+
 
 def sync_get_leaderboard(metric: str):
     connection = get_db()
