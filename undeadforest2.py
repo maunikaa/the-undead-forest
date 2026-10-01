@@ -960,6 +960,9 @@ async def on_ready():
         )
     )
     print(f"Logged in as {bot.user} (Bot ID: {bot.user.id})")
+    synced = await bot.tree.sync()
+    print(f"Synced {len(synced)} global slash commands.")
+    
 
 
 """
