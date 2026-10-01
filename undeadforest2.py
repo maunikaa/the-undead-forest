@@ -949,7 +949,7 @@ class PromptBot(commands.Bot):
         setup_db()
         self.add_view(ClaimReview())
         synced = await self.tree.sync()
-        print(f"Synced {len(synced)} global slash commands.")
+        logging.info(f"Synced {len(synced)} global slash commands.")
     
 bot = PromptBot()
         
