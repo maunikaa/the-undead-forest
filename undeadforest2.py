@@ -500,7 +500,7 @@ def sync_delete_book(user_id: int | str, book_input: str):
     book_input = book_input.strip()
     
     cursor.execute(
-            "SELECT id, title, points_awarded FROM books WHERE user_id = ? OR user_id = ?",
+            "SELECT id, title, points FROM books WHERE user_id = ? OR user_id = ?",
             (user_int, str(user_int))
         )
     user_books = cursor.fetchall()
