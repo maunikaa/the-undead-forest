@@ -942,7 +942,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 # Replace with your actual server (Guild) ID as an integer
-TEST_GUILD_ID = 123456789012345678 
+TEST_GUILD_ID = 1543413824420315187 
 
 class PromptBot(commands.Bot):
     def __init__(self):
