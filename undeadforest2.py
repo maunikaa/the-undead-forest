@@ -1347,12 +1347,22 @@ async def log_book_cmd(
     
 
 # ============================================================
-# Delete Books
+# Admin: Delete Books
 # ============================================================
 
 async def delete_book_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    target_user = interaction.namespace.user
+    if not target_user:
+        return [
+            app_commands.Choice(name="⚠️ Please select a user first", value="NONE")
+        ]
     try:
-        books = await get_books_autocomplete(interaction.user.id, current)
+        books = await get_books_autocomplete(target_user.id, current)
+        if not books:
+            return [
+                app_commands.Choice(name="⚠️ No matching books found for this user", value="NONE")
+            ]
+            
         choices = []
         for book in books:
             author = book["author"] if book["author"] else "Unknown Author"
@@ -1369,28 +1379,33 @@ async def delete_book_autocomplete(interaction: discord.Interaction, current: st
         return []
     
 
-@bot.tree.command(name="delete_book", description="Delete a book from your reading log and deduct points")
-@app_commands.describe(book="Select the book you want to delete from your log")
+@bot.tree.command(name="delete_book", description="Admin only: Delete a book from your reading log and deduct points")
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    user="The user whose book you want to delete",
+    book="Select the book you want to delete from your log"
+)
 @app_commands.autocomplete(book=delete_book_autocomplete)
-async def delete_book_cmd(interaction: discord.Interaction, book: str):
+async def delete_book_cmd(interaction: discord.Interaction, user: discord.User, book: str):
     if not book or book.strip().lower() in ["none", ""]:
         await interaction.response.send_message("⚠️ Please select a book from the dropdown list to delete.", ephemeral=True)
         return
     
-    result = await delete_book(interaction.user.id, book)
+    result = await delete_book(user.id, book)
     if not result:
-        await interaction.response.send_message("❌ Could not find the selected book in your log.", ephemeral=True)
+        await interaction.response.send_message(f"❌ Could not find the selected book in {user.mention}'s log.", ephemeral=True)
         return
     
     title, points_deducted, new_total_points = result
     
     embed = discord.Embed(
         title="🗑️ Book Deleted",
-        description=f"**{title}** has been removed from your reading log.",
+        description=f"**{title}** has been removed from {user.mention}'s reading log.",
         color=discord.Color.dark_red(),
     )
     embed.add_field(name="Points Deducted", value=f"-{points_deducted} points", inline=True)
     embed.add_field(name="New Total Points", value=f"`{new_total_points}` points", inline=True)
+    embed.set_footer(text=f"Deleted by {interaction.user.display_name}")
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
