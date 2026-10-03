@@ -574,7 +574,6 @@ def sync_admin_skip_prompt(user_id: int | str, location_id: str,prompt_id: str, 
     cursor.execute("INSERT OR REPLACE INTO completed_prompts (user_id, location_id, prompt_id, proof_url, points) VALUES (?, ?, ?, ?, ?)", (uid_clean, location_id, prompt_id, proof_url, half_points))
     cursor.execute("UPDATE users SET points = COALESCE(points, 0) + ? WHERE (user_id=? OR user_id=?)", (half_points, uid_clean, str(uid_clean)))
     connection.commit()
-    connection.close()
     cursor.execute("SELECT points FROM users WHERE (user_id=? OR user_id=?)", (uid_clean, str(uid_clean)))
     user_points = cursor.fetchone()
     updated_points = user_points[0] if user_points else half_points
