@@ -482,6 +482,56 @@ def sync_get_user_books(user_id: int):
     cursor = connection.cursor()
     cursor.execute("SELECT title, author, page_count, rating, points, logged_at FROM books WHERE user_id=? ORDER BY id DESC", (user_id,))
     return cursor.fetchall()
+
+
+def sync_get_books_autocomplete(user_id: int | str, query: str="") -> list[dict]:
+    uid_clean = int(user_id)
+    query = f"%{query.strip()}%"
+    connection = get_db()
+    cursor = connection.cursor()
+    connection.row_factory = sqlite3.Row
+    cursor.execute("SELECT id, title, author FROM books WHERE (user_id=? OR user_id=?) AND (title LIKE ? OR author LIKE ?) ORDER BY id DESC LIMIT 25", (uid_clean, str(uid_clean), query, query))
+    rows = cursor.fetchall()
+    return [
+        {
+            "id": row["id"],
+            "title": row["title"],
+            "author": row["author"] if "author" in row.keys() else "Unknown"
+        }
+        for row in rows
+    ]
+
+
+def sync_delete_book(user_id: int | str, book_id: str) -> tuple[str, int, int] | None:
+    uid_clean = int(user_id)
+    target = book_id.strip()
+    connection = get_db()
+    cursor = connection.cursor()
+    row = None
+    if target.isdigit():
+        cursor.execute("SELECT id, title, points FROM books WHERE id=? AND (user_id=? OR user_id=?)", (int(target), uid_clean, str(uid_clean)))
+        row = cursor.fetchone()
+    if not row:
+        cursor.execute("SELECT id, title, points FROM books WHERE LOWER(title)=LOWER(?) AND (user_id=? OR user_id=?)", (target, uid_clean, str(uid_clean)))
+        row = cursor.fetchone()
+    if not row and " by " in target:
+        title_part = target.split(" by ", 1)[0].strip()
+        cursor.execute("SELECT id, title, points FROM books WHERE LOWER(title)=LOWER(?) AND (user_id=? OR user_id=?)", (title_part, uid_clean, str(uid_clean)))
+        row = cursor.fetchone()
+    if not row:
+        logging.warning(
+            f"[DB DELETE] No matching record found for input '{target}' under user"
+            f" {uid_clean}. Deletion aborted."
+        )
+        return None
+    book_id, title, points = row
+    cursor.execute("DELETE FROM books WHERE id=?", (book_id,))
+    cursor.execute("UPDATE users SET points = MAX(0, points - ?) WHERE (user_id = ? OR user_id = ?)", (points, uid_clean, str(uid_clean)))
+    connection.commit()
+    cursor.execute("SELECT points FROM users WHERE (user_id=? OR user_id=?)", (uid_clean, str(uid_clean)))
+    points_row = cursor.fetchone()
+    updated_points = points_row[0] if points_row else 0
+    return title, points, updated_points
     
 
 def sync_reset_user_stats(user_id: int):
@@ -594,8 +644,8 @@ async def save_pending_claim(mid, uid, loc, pid, url, pts): return await asyncio
 async def get_and_clear_pending_claim(mid): return await asyncio.to_thread(sync_get_and_clear_pending_claim, mid)
 async def log_book(uid, title, author, pgs, rating, pts): return await asyncio.to_thread(sync_log_book, uid, title, author, pgs, rating, pts)
 async def get_user_books(uid): return await asyncio.to_thread(sync_get_user_books, uid)
-# async def get_books_autocomplete(uid, query): return await asyncio.to_thread(sync_get_books_autocomplete, uid, query)
-# async def delete_book(uid, bid): return await asyncio.to_thread(sync_delete_book, uid, bid)
+async def get_books_autocomplete(uid, query): return await asyncio.to_thread(sync_get_books_autocomplete, uid, query)
+async def delete_book(uid, bid): return await asyncio.to_thread(sync_delete_book, uid, bid)
 async def reset_user_stats(uid): return await asyncio.to_thread(sync_reset_user_stats, uid)
 async def set_guild_channel(gid, channel, cid): return await asyncio.to_thread(sync_set_guild_channel, gid, channel, cid)
 async def get_guild_settings(gid): return await asyncio.to_thread(sync_get_guild_settings, gid)
@@ -1300,7 +1350,50 @@ async def log_book_cmd(
 # Delete Books
 # ============================================================
 
+async def delete_book_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    try:
+        books = await get_books_autocomplete(interaction.user.id, current)
+        choices = []
+        for book in books:
+            author = book["author"] if book["author"] else "Unknown Author"
+            label = f"{book['title']} by {author} ({book['pages']} pages"
+            
+            if len(label) > 100:
+                label = label[:97] + "..."
+            
+            choices.append(app_commands.Choice(name=label, value=str(book["id"])))
+            
+            return choices[:25]
+    except Exception as e:
+        logging.error(f"[AUTOCOMPLETE ERROR] Error in delete_book_autocomplete: {e}")
+        return []
     
+
+@bot.tree.command(name="delete_book", description="Delete a book from your reading log and deduct points")
+@app_commands.describe(book="Select the book you want to delete from your log")
+@app_commands.autocomplete(book=delete_book_autocomplete)
+async def delete_book_cmd(interaction: discord.Interaction, book: str):
+    if not book or book.strip().lower() in ["none", ""]:
+        await interaction.response.send_message("⚠️ Please select a book from the dropdown list to delete.", ephemeral=True)
+        return
+    
+    result = await delete_book(interaction.user.id, book)
+    if not result:
+        await interaction.response.send_message("❌ Could not find the selected book in your log.", ephemeral=True)
+        return
+    
+    title, points_deducted, new_total_points = result
+    
+    embed = discord.Embed(
+        title="🗑️ Book Deleted",
+        description=f"**{title}** has been removed from your reading log.",
+        color=discord.Color.dark_red(),
+    )
+    embed.add_field(name="Points Deducted", value=f"-{points_deducted} points", inline=True)
+    embed.add_field(name="New Total Points", value=f"`{new_total_points}` points", inline=True)
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 # ============================================================
 # View Books
