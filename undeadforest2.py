@@ -938,6 +938,8 @@ class LeaderboardView(discord.ui.View):
 intents = discord.Intents.default()
 intents.message_content = True
 
+TEST_GUILD_ID = 123456789012345678
+
 class PromptBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
@@ -946,6 +948,12 @@ class PromptBot(commands.Bot):
 
         setup_db()
         self.add_view(ClaimReview())
+        
+        guild_obj = discord.Object(id=TEST_GUILD_ID)
+        self.tree.clear_commands(guild=guild_obj)
+        await self.tree.sync(guild=guild_obj)
+        logging.info(f"Cleared guild commands for guild {TEST_GUILD_ID}.")
+    
         synced = await self.tree.sync()
         logging.info(f"Synced {len(synced)} global slash commands.")
     
