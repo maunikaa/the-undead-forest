@@ -299,7 +299,14 @@ LOCATIONS = [
 
 LOCATION_MAP = {loc["id"]: loc for loc in LOCATIONS}
 LOCATION_ORDER = [loc["id"] for loc in LOCATIONS]
-
+PROMPT_LOOKUP = {
+    (loc["id"], p["id"]): {
+        "text": p["text"],
+        "points": p["points"],
+        "location_name": loc["name"],
+    }
+    for loc in LOCATIONS for p in loc["prompts"]
+}
 
 # ============================================================
 # Database Setup
@@ -517,6 +524,62 @@ def sync_get_leaderboard(metric: str):
     elif metric == "pages":
         cursor.execute("SELECT user_id, SUM(page_count) as total_pages FROM books GROUP BY user_id ORDER by total_pages DESC LIMIT 10")
         return cursor.fetchall(), "pages"   
+
+
+def sync_get_user_active_prompts(user_id: int | str, current: str = "") -> list[dict]:
+    uid_clean = int(user_id)
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT location_id, prompt_id FROM active_prompts WHERE (user_id=? OR `user_id`=?)", (uid_clean, str(uid_clean)))
+    rows = cursor.fetchall()
+    choices = []
+    current_lower = current.strip().lower()
+    for loc_id, p_id in rows:
+        meta = PROMPT_LOOKUP.get((loc_id, p_id))
+        location_name = meta["location_name"] if meta else loc_id
+        prompt_text = meta["text"] if meta else p_id
+        base_points = meta["points"] if meta else 0
+        combined_text = f"{p_id} - {prompt_text} {location_name}".lower()
+        if not current_lower or current_lower in combined_text:
+            choices.append({
+                "composite_id": f"{loc_id}::{p_id}",
+                "location_id": loc_id,
+                "prompt_id": p_id,
+                "location_name": location_name,
+                "prompt_text": prompt_text,
+                "points": base_points,
+                "half_points": base_points // 2
+            })
+    return choices
+
+
+def sync_admin_skip_prompt(user_id: int | str, location_id: str,prompt_id: str, admin_user_str: str) -> tuple[str, str, int, int] | None:
+    uid_clean = int(user_id)
+    meta = PROMPT_LOOKUP.get((location_id, prompt_id))
+    if not meta:
+        logging.error(f"Admin {admin_user_str} attempted to skip a non-existent prompt: {location_id}, {prompt_id}")
+        return None
+    full_points = meta["points"]
+    half_points = full_points // 2
+    prompt_text = meta["text"]
+    location_name = meta["location_name"]
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT 1 from active_prompts WHERE (user_id=? OR `user_id`=?) AND location_id=? AND prompt_id=?", (uid_clean, str(uid_clean), location_id, prompt_id))
+    if not cursor.fetchone():
+        logging.error(f"Admin {admin_user_str} attempted to skip a prompt not in active prompts for user {uid_clean}: {location_id}, {prompt_id}")
+        return None
+    cursor.execute("DELETE FROM active_prompts WHERE (user_id=? OR `user_id`=?) AND location_id=? AND prompt_id=?", (uid_clean, str(uid_clean), location_id, prompt_id))
+    proof_url = f"Skipped by admin {admin_user_str}"
+    cursor.execute("INSERT OR REPLACE INTO completed_prompts (user_id, location_id, prompt_id, proof_url, points) VALUES (?, ?, ?, ?, ?)", (uid_clean, location_id, prompt_id, proof_url, half_points))
+    cursor.execute("UPDATE users SET points = COALESCE(points, 0) + ? WHERE (user_id=? OR user_id=?)", (half_points, uid_clean, str(uid_clean)))
+    connection.commit()
+    connection.close()
+    cursor.execute("SELECT points FROM users WHERE (user_id=? OR user_id=?)", (uid_clean, str(uid_clean)))
+    user_points = cursor.fetchone()
+    updated_points = user_points[0] if user_points else half_points
+    return prompt_text, location_name, half_points, updated_points
+    
     
 
 # ============================================================
@@ -539,6 +602,8 @@ async def set_guild_channel(gid, channel, cid): return await asyncio.to_thread(s
 async def get_guild_settings(gid): return await asyncio.to_thread(sync_get_guild_settings, gid)
 async def reset_user_status(uid): return await asyncio.to_thread(sync_reset_user_stats, uid)
 async def get_leaderboard(metric): return await asyncio.to_thread(sync_get_leaderboard, metric)
+async def get_user_active_prompts(uid, current=""): return await asyncio.to_thread(sync_get_user_active_prompts, uid, current)
+async def admin_skip_prompt(uid, loc, pid, admin_str): return await asyncio.to_thread(sync_admin_skip_prompt, uid, loc, pid, admin_str)
 
 
 # ============================================================
@@ -1279,6 +1344,68 @@ async def leaderboard_cmd(interaction: discord.Interaction):
     
     
 
+# ============================================================
+# Admin: Skip a Prompt
+# ============================================================
+
+async def admin_skip_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    target_user = interaction.namespace.user
+    if not target_user:
+        return [
+            app_commands.Choice(name="⚠️ Please select a user in the 'user' field first", value="NONE")
+        ]
+    
+    active_prompts = await get_user_active_prompts(target_user.id, current)
+    if not active_prompts:
+        return [
+            app_commands.Choice(name="⚠️ No active prompts found for this user", value="NONE")
+        ]
+    
+    choices = []
+    for item in active_prompts:
+        name = f"{item['prompt_id']}: {item['prompt_text']} (+{item['half_points']} pts)"
+        if len(name) > 100:
+            name = name[:97] + "..."
+        choices.append(app_commands.Choice(name=name, value=item['composite_id']))
+    return choices[:25]
+
+@bot.tree.command(
+    name="admin_skip_prompt",
+    description="Admin: Skip a user's active prompt, mark it complete, and award half points"
+)
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    user="The user whose prompt you want to skip",
+    prompt="Select from the user's active prompts from the dropdown list to skip"
+)
+@app_commands.autocomplete(prompt=admin_skip_autocomplete)
+async def admin_skip_prompt_cmd(interaction: discord.Interaction, user: discord.Member, prompt: str):
+    if not prompt or prompt == "NONE" or "::" not in prompt:
+        await interaction.response.send_message("⚠️ Please select an active prompt directly from the suggested dropdown list.", ephemeral=True)
+        return
+    
+    location_id, prompt_id = prompt.split("::", 1)
+    admin_tag = f"{interaction.user.display_name} ({interaction.user.id})"
+    
+    result = await admin_skip_prompt(user.id, location_id, prompt_id, admin_tag)
+    if not result:
+        await interaction.response.send_message(f"❌ Could not find `{prompt_id}` for this user. It may have already been completed", ephemeral=True)
+        return
+    
+    prompt_text, location_name, half_points, new_total_points = result
+    embed = discord.Embed(
+        title="⏭️ Prompt Skipped",
+        description=f"Prompt for {user.mention} has been skipped and marked as complete.",
+        color = discord.Color.orange(),
+    )
+    embed.add_field(name="Location", value=location_name, inline=True)
+    embed.add_field(name="Prompt", value=f"{prompt_id}: {prompt_text}", inline=True)
+    embed.add_field(name="Points Awarded (50%)", value=f"+{half_points} pts", inline=True)
+    embed.add_field(name="New Total Points", value=f"`{new_total_points}` pts", inline=True)
+    embed.add_field(name="Prompt Description", value=f"{prompt_text}", inline=False)
+    embed.set_footer(text=f"Skipped by {admin_tag}")
+    
+    await interaction.response.send_message(embed=embed)
 
 # ============================================================
 # Admin: Set Submission Channel
