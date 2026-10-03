@@ -1366,7 +1366,7 @@ async def delete_book_autocomplete(interaction: discord.Interaction, current: st
         choices = []
         for book in books:
             author = book["author"] if book["author"] else "Unknown Author"
-            label = f"{book['title']} by {author} ({book['pages']} pages"
+            label = f"{book['title']} by {author}"
             
             if len(label) > 100:
                 label = label[:97] + "..."
