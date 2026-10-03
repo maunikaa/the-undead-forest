@@ -1379,7 +1379,7 @@ async def delete_book_autocomplete(interaction: discord.Interaction, current: st
         return []
     
 
-@bot.tree.command(name="delete_book", description="Admin only: Delete a book from your reading log and deduct points")
+@bot.tree.command(name="delete_book", description="Admin only: Delete a book from a user's reading log and deduct points")
 @app_commands.default_permissions(administrator=True)
 @app_commands.describe(
     user="The user whose book you want to delete",
