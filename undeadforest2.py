@@ -652,7 +652,18 @@ def sync_reset_user_skips(user_id: int | str):
     cursor = connection.cursor()
     cursor.execute("UDPATE users SET skip_count=0 WHERE user_id = ? OR user_id = ?", (uid_clean, str(uid_clean),))
     cursor.commit()
-    return cursor.rowcount > 0
+    rows_affected = cursor.rowcount
+    print(
+        f"[DEBUG RESET] Reset skips for UID {uid_clean} | Rows affected:"
+        f" {rows_affected}"
+    )
+    cursor.execute(
+        "SELECT skip_count FROM users WHERE user_id = ? OR user_id = ?",
+        (uid_clean, str(uid_clean)),
+    )
+    row = cursor.fetchone()
+    print(f"[DEBUG RESET] Verifying post-update skip_count in DB: {row}")
+    return rows_affected > 0
     
     
 
