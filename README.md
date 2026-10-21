@@ -21,6 +21,7 @@ A readathon bot created for discord.gg/VnNnzB545
 - /claim - submit proof for prompt you’ve drawn (will go to submission channel where admins can approve/deny)
 - /log_book - log a completed book w/ title, author, page count, and rating (rewards 1 point for every 10 pages)
 - /view_books - gives you a view of all the books you’ve logged
+- /leaderboard - view leaderboard for most points, most books read, and most pages read
 
 ### **Admin commands:**
 
