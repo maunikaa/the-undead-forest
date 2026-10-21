@@ -605,7 +605,7 @@ def sync_get_user_active_prompts(user_id: int | str, current: str = "") -> list[
 
 def setup_skip_tracking():
     connection = get_db()
-    cursor = connection.cursor
+    cursor = connection.cursor()
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN skip_count INTEGER NOT NULL DEFAULT 0")
         connection.commit()
