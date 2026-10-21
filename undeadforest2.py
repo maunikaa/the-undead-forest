@@ -670,6 +670,30 @@ def sync_reset_user_skips(user_id: int | str):
     row = cursor.fetchone()
     print(f"[DEBUG RESET] Verifying post-update skip_count in DB: {row}")
     return rows_affected > 0
+
+def sync_add_points(user_id: int | str, amount: int) -> tuple[int, int]:
+    uid_clean = int(user_id)
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("INSERT INTO users (user_id, points) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET points = points + ?", (uid_clean, amount, amount))
+    connection.commit()
+    cursor.execute("SELECT points FROM users WHERE user_id = ? OR user_id = ?", (uid_clean, str(uid_clean),))
+    row = cursor.fetchone()
+    new_points = row[0] if row else amount
+    old_points = new_points - amount
+    return old_points, new_points
+
+def sync_remove_points(user_id: int | str, amount: int) -> tuple[int, int]:
+    uid_clean = int(user_id)
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT points FROM users WHERE user_id = ? OR user_id = ?", (uid_clean, str(uid_clean),))
+    row = cursor.fetchone()
+    old_points = row[0] if row else 0
+    new_points = max(0, old_points - amount)
+    cursor.execute("INSERT INTO users (user_id, points) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET points = ?", (uid_clean, new_points, new_points,))
+    connection.commit()
+    return old_points, new_points
     
     
 
@@ -696,6 +720,8 @@ async def get_leaderboard(metric): return await asyncio.to_thread(sync_get_leade
 async def get_user_active_prompts(uid, current=""): return await asyncio.to_thread(sync_get_user_active_prompts, uid, current)
 async def admin_skip_prompt(uid, loc, pid, admin_str): return await asyncio.to_thread(sync_admin_skip_prompt, uid, loc, pid, admin_str)
 async def reset_user_skips(uid): return await asyncio.to_thread(sync_reset_user_skips, uid)
+async def add_points(uid, amt): return await asyncio.to_thread(sync_add_points, uid, amt)
+async def remove_points(uid, amt): return await asyncio.to_thread(sync_remove_points, uid, amt)
 
 
 # ============================================================
@@ -1668,6 +1694,40 @@ async def set_response_channel_error(interaction: discord.Interaction, error: ap
     if isinstance(error, app_commands.MissingPermissions):
         await interaction.response.send_message("You do not have permission to use this command", ephemeral=True)
         
+        
+# ============================================================
+# Admin: Add Points
+# ============================================================
+
+@bot.tree.command(
+    name="add_points",
+    description="Admin only: add points to a user's balance"
+)
+@app_commands.default_permissions(administrator=True)
+async def add_points_cmd(interaction: discord.Interaction, user: discord.Member, amount: app_commands.Range[int, 1, None]):
+    old_pts, new_pts = await add_points(user.id, amount)
+    await interaction.response.send_message(
+        f"Successfully added {amount} points to {user.mention}"
+        f"Old points: {old_pts}, New points: {new_pts}"
+    )
+
+
+# ============================================================
+# Admin: Remove Points
+# ============================================================
+
+@bot.tree.command(
+    name="remove_points",
+    description="Admin only: remove points from a user's balance"
+)
+@app_commands.default_permissions(administrator=True)
+async def add_points_cmd(interaction: discord.Interaction, user: discord.Member, amount: app_commands.Range[int, 1, None]):
+    old_pts, new_pts = await remove_points(user.id, amount)
+    await interaction.response.send_message(
+        f"Successfully removed {amount} points from {user.mention}"
+        f"Old points: {old_pts}, New points: {new_pts}"
+    )
+
 
 # ============================================================
 # Admin: Reset User Stats
