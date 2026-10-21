@@ -1017,6 +1017,7 @@ class PromptBot(commands.Bot):
     async def setup_hook(self):
 
         setup_db()
+        setup_skip_tracking()
         self.add_view(ClaimReview())
         synced = await self.tree.sync()
         logging.info(f"Synced {len(synced)} global slash commands.")
