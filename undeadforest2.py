@@ -1083,6 +1083,7 @@ async def on_ready():
 # ============================================================
 
 @bot.tree.command(name="profile", description="View your progress, current level, and stats")
+@app_commands.describe(user="User whose profile you want to view (required)",)
 async def profile_cmd(interaction: discord.Interaction, user: discord.Member | None = None):
     target = user 
     loc_index, points, skips_used, book_count, pages_read, prompts_done = await get_profile_data(target.id)
