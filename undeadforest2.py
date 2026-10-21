@@ -575,7 +575,13 @@ def sync_get_leaderboard(metric: str):
         return cursor.fetchall(), "books"
     elif metric == "pages":
         cursor.execute("SELECT user_id, SUM(page_count) as total_pages FROM books GROUP BY user_id ORDER by total_pages DESC LIMIT 10")
-        return cursor.fetchall(), "pages"   
+        return cursor.fetchall(), "pages"
+    elif metric == "prompts":
+        cursor.execute(
+            "SELECT user_id, COUNT(*) as completed_count FROM completed_prompts"
+            " GROUP BY user_id ORDER BY completed_count DESC LIMIT 10"
+        )
+        return cursor.fetchall(), "prompts"   
 
 
 def sync_get_user_active_prompts(user_id: int | str, current: str = "") -> list[dict]:
@@ -992,6 +998,7 @@ class LeaderboardView(discord.ui.View):
         placeholder="Choose Leaderboard Category",
         options=[
             discord.SelectOption(label="Most Points", value="points", emoji="⭐"),
+            discord.SelectOption(label="Most Prompts Cleared", value="prompts", emoji="📜"),
             discord.SelectOption(label="Most Books Read", value="books", emoji="📚"),
             discord.SelectOption(label="Most Pages Read", value="pages", emoji="📄"),
         ]
@@ -1001,6 +1008,7 @@ class LeaderboardView(discord.ui.View):
         data, unit = await get_leaderboard(metric)
         title_map = {
             "points": "⭐ Most Points Leaderboard",
+            "prompts": "📜 Most Prompts Cleared Leaderboard",
             "books": "📚 Most Books Read Leaderboard",
             "pages": "📄 Most Pages Read Leaderboard",
         }
