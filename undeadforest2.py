@@ -1372,6 +1372,7 @@ async def log_book_cmd(
     await interaction.response.send_message(embed=embed)
     
 
+'''
 # ============================================================
 # Admin: Delete Books
 # ============================================================
@@ -1437,7 +1438,7 @@ async def delete_book_cmd(interaction: discord.Interaction, user: discord.User, 
     embed.set_footer(text=f"Deleted by {interaction.user.display_name}")
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
+'''
 
 # ============================================================
 # View Books
