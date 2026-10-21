@@ -1589,7 +1589,7 @@ async def admin_skip_prompt_cmd(interaction: discord.Interaction, user: discord.
     user="The member whose prompt skips you want to reset"
 )
 async def reset_skips_cmd(interaction: discord.Interaction, user: discord.Member):
-    success = await asyncio.to_thread(db_reset_user_skips, user.id)
+    success = await asyncio.to_thread(reset_user_skips, user.id)
 
     if not success:
         await interaction.response.send_message(
