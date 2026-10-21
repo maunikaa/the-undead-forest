@@ -486,20 +486,21 @@ def sync_get_user_books(user_id: int):
 
 def sync_get_books_autocomplete(user_id: int | str, query: str="") -> list[dict]:
     uid_clean = int(user_id)
-    query = f"%{query.strip()}%"
+    search = f"%{query.strip()}%"
     connection = get_db()
     cursor = connection.cursor()
     connection.row_factory = sqlite3.Row
-    cursor.execute("SELECT id, title, author FROM books WHERE (user_id=? OR user_id=?) AND (title LIKE ? OR author LIKE ?) ORDER BY id DESC LIMIT 25", (uid_clean, str(uid_clean), query, query))
+    cursor.execute("SELECT id, title, author FROM books WHERE (user_id=? OR user_id=?) AND (title LIKE ? OR author LIKE ?) ORDER BY id DESC LIMIT 25", (uid_clean, str(uid_clean), search, search))
     rows = cursor.fetchall()
-    return [
-        {
-            "id": row["id"],
-            "title": row["title"],
-            "author": row["author"] if "author" in row.keys() else "Unknown"
-        }
-        for row in rows
-    ]
+    result = []
+    for row in rows:
+        author_val = row["author"] if "author" in row.keys() and row["author"] else ""
+        result.append({
+            "id": str(row["id"]),
+            "title": str(row["title"]),
+            "author": str(author_val)
+        })
+    return result
 
 
 def sync_delete_book(user_id: int | str, book_id: str) -> tuple[str, int, int] | None:
@@ -1128,36 +1129,61 @@ async def handle_draw(interaction: discord.Interaction, target_loc_id: str):
 # Draw Prompts - Slash Commands
 # ============================================================
 @bot.tree.command(name="cabin", description="Draw a prompt from The Abandoned Cabin")
+@app_commands.checks.cooldown(1, 3600.0, key=lambda i: (i.guild_id, i.user.id))
 async def cabin_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "abandoned-cabin") 
 
 @bot.tree.command(name="town", description="Draw a prompt from Halloween Town")
+@app_commands.checks.cooldown(1, 3600.0, key=lambda i: (i.guild_id, i.user.id))
 async def town_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "halloween-town")
 
 @bot.tree.command(name="tower", description="Draw a prompt from The Tower of Terror")
+@app_commands.checks.cooldown(1, 3600.0, key=lambda i: (i.guild_id, i.user.id))
 async def tower_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "tower-of-terror")  
     
 @bot.tree.command(name="trail", description="Draw a prompt from The Trick or Treat Trail")
+@app_commands.checks.cooldown(1, 3600.0, key=lambda i: (i.guild_id, i.user.id))
 async def trail_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "trick-or-treat-trail")
 
 @bot.tree.command(name="hideout", description="Draw a prompt from The Final Girl Hideout")
+@app_commands.checks.cooldown(1, 3600.0, key=lambda i: (i.guild_id, i.user.id))
 async def hideout_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "final-girl-hideout") 
     
 @bot.tree.command(name="cemetery", description="Draw a prompt from The Haunted Cemetery")
+@app_commands.checks.cooldown(1, 3600.0, key=lambda i: (i.guild_id, i.user.id))
 async def cemetery_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "haunted-cemetery")
 
 @bot.tree.command(name="lair", description="Draw a prompt from The Creature's Lair")
+@app_commands.checks.cooldown(1, 3600.0, key=lambda i: (i.guild_id, i.user.id))
 async def lair_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "creature's-lair") 
 
 @bot.tree.command(name="festival", description="Draw a prompt from The Festival Grounds")
+@app_commands.checks.cooldown(1, 3600.0, key=lambda i: (i.guild_id, i.user.id))
 async def festival_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "festival-grounds")   
+    
+
+# ============================================================
+# Draw Prompts - Error Check
+# ============================================================
+
+@bot.tree.error
+async def draw_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.CommandOnCooldown):
+        minutes, seconds = divmod(int(error.retry_after), 60)
+        hours, minutes = divmod(minutes, 60)
+        await interaction.response.send_message(f"⏳ You must rest before drawing another prompt! Try again in **{hours}h {minutes}m {seconds}s**.",
+            ephemeral=True)
+    elif isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("❌ You do not have permission to run this command.", ephemeral=True)
+    else:
+        raise error
 
 
 # ============================================================
@@ -1351,12 +1377,15 @@ async def log_book_cmd(
 # ============================================================
 
 async def delete_book_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    target_user = interaction.namespace.user
-    if not target_user:
-        return [
-            app_commands.Choice(name="⚠️ Please select a user first", value="NONE")
-        ]
+    
     try:
+        target_user = interaction.namespace.user
+        logging.info(f"[AUTOCOMPLETE] Target user: {target_user}, Current input: '{current}'")
+        if not target_user:
+            return [
+                app_commands.Choice(name="⚠️ Please select a user first", value="NONE")
+            ]
+                
         books = await get_books_autocomplete(target_user.id, current)
         if not books:
             return [
