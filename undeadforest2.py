@@ -603,8 +603,16 @@ def sync_get_user_active_prompts(user_id: int | str, current: str = "") -> list[
             })
     return choices
 
+def setup_skip_tracking():
+    connection = get_db()
+    cursor = connection.cursor
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN skip_count INTEGER NOT NULL DEFAULT 0")
+        connection.commit()
+    except sqlite3.OperationalError:
+        pass
 
-def sync_admin_skip_prompt(user_id: int | str, location_id: str,prompt_id: str, admin_user_str: str) -> tuple[str, str, int, int] | None:
+def sync_admin_skip_prompt(user_id: int | str, location_id: str,prompt_id: str, admin_user_str: str, max_skips: int=3) -> tuple[str, str, int, int, int] | None:
     uid_clean = int(user_id)
     meta = PROMPT_LOOKUP.get((location_id, prompt_id))
     if not meta:
@@ -616,6 +624,11 @@ def sync_admin_skip_prompt(user_id: int | str, location_id: str,prompt_id: str, 
     location_name = meta["location_name"]
     connection = get_db()
     cursor = connection.cursor()
+    cursor.execute("SELECT skip_count FROM users WHERE user_id=? OR user_id=?", (uid_clean, str(uid_clean),))
+    user_row = cursor.fetchone()
+    current_skips = user_row[0] if user_row and user_row[0] is not None else 0
+    if current_skips >= max_skips:
+        return "LIMIT_REACHED"
     cursor.execute("SELECT 1 from active_prompts WHERE (user_id=? OR `user_id`=?) AND location_id=? AND prompt_id=?", (uid_clean, str(uid_clean), location_id, prompt_id))
     if not cursor.fetchone():
         logging.error(f"Admin {admin_user_str} attempted to skip a prompt not in active prompts for user {uid_clean}: {location_id}, {prompt_id}")
@@ -623,12 +636,20 @@ def sync_admin_skip_prompt(user_id: int | str, location_id: str,prompt_id: str, 
     cursor.execute("DELETE FROM active_prompts WHERE (user_id=? OR `user_id`=?) AND location_id=? AND prompt_id=?", (uid_clean, str(uid_clean), location_id, prompt_id))
     proof_url = f"Skipped by admin {admin_user_str}"
     cursor.execute("INSERT OR REPLACE INTO completed_prompts (user_id, location_id, prompt_id, proof_url, points) VALUES (?, ?, ?, ?, ?)", (uid_clean, location_id, prompt_id, proof_url, half_points))
-    cursor.execute("UPDATE users SET points = COALESCE(points, 0) + ? WHERE (user_id=? OR user_id=?)", (half_points, uid_clean, str(uid_clean)))
+    cursor.execute("UPDATE users SET points = COALESCE(points, 0) + ?, skip_count = skip_count + 1 WHERE (user_id=? OR user_id=?)", (half_points, uid_clean, str(uid_clean)))
     connection.commit()
-    cursor.execute("SELECT points FROM users WHERE (user_id=? OR user_id=?)", (uid_clean, str(uid_clean)))
+    cursor.execute("SELECT points, skip_count FROM users WHERE (user_id=? OR user_id=?)", (uid_clean, str(uid_clean)))
     user_points = cursor.fetchone()
     updated_points = user_points[0] if user_points else half_points
-    return prompt_text, location_name, half_points, updated_points
+    new_skip_count = user_points[1] if user_points else current_skips + 1
+    remaining_skips = max(0, max_skips - new_skip_count)
+    return prompt_text, location_name, half_points, updated_points, remaining_skips
+
+def sync_reset_user_skips(user_id: int | str):
+    uid_clean = int(user_id)
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("UDPATE users SET skip_count=0 WHERE user_id = ? OR user_id = ?", (uid_clean, str(uid_clean),))
     
     
 
@@ -654,6 +675,7 @@ async def reset_user_status(uid): return await asyncio.to_thread(sync_reset_user
 async def get_leaderboard(metric): return await asyncio.to_thread(sync_get_leaderboard, metric)
 async def get_user_active_prompts(uid, current=""): return await asyncio.to_thread(sync_get_user_active_prompts, uid, current)
 async def admin_skip_prompt(uid, loc, pid, admin_str): return await asyncio.to_thread(sync_admin_skip_prompt, uid, loc, pid, admin_str)
+async def reset_user_skips(uid): return await asyncio.to_thread(sync_reset_user_skips, uid)
 
 
 # ============================================================
@@ -1525,11 +1547,18 @@ async def admin_skip_prompt_cmd(interaction: discord.Interaction, user: discord.
     admin_tag = f"{interaction.user.display_name} ({interaction.user.id})"
     
     result = await admin_skip_prompt(user.id, location_id, prompt_id, admin_tag)
+    
+    if result == "LIMIT_REACHED":
+        await interaction.response.send_message(
+            f"🚫 **Skip limit reached:** {user.mention} has already used all **3** prompt skips.\n"
+            f"Use `/reset_skips user:{user.mention}` if you wish to reset their quota.",
+            ephemeral=True
+        ) 
     if not result:
         await interaction.response.send_message(f"❌ Could not find `{prompt_id}` for this user. It may have already been completed", ephemeral=True)
         return
     
-    prompt_text, location_name, half_points, new_total_points = result
+    prompt_text, location_name, half_points, new_total_points, remaining_skips = result
     embed = discord.Embed(
         title="⏭️ Prompt Skipped",
         description=f"Prompt for {user.mention} has been skipped and marked as complete.",
@@ -1539,9 +1568,42 @@ async def admin_skip_prompt_cmd(interaction: discord.Interaction, user: discord.
     embed.add_field(name="Prompt", value=f"{prompt_id}: {prompt_text}", inline=True)
     embed.add_field(name="Points Awarded (50%)", value=f"+{half_points} pts", inline=True)
     embed.add_field(name="New Total Points", value=f"`{new_total_points}` pts", inline=True)
+    embed.add_field(name="Skips Remaining", value=f"`{remaining_skips} / 3`", inline=True)
     embed.add_field(name="Prompt Description", value=f"{prompt_text}", inline=False)
     embed.set_footer(text=f"Skipped by {admin_tag}")
     
+    await interaction.response.send_message(embed=embed)
+    
+# ============================================================
+# Admin: Reset Skips
+# ============================================================
+
+@bot.tree.command(
+    name="reset_skips",
+    description="Admin only: Reset a member's prompt skip counter back to 0."
+)
+@app_commands.default_permissions(administrator=True)
+@app_commands.describe(
+    user="The member whose prompt skips you want to reset"
+)
+async def reset_skips_cmd(interaction: discord.Interaction, user: discord.Member):
+    success = await asyncio.to_thread(db_reset_user_skips, user.id)
+
+    if not success:
+        await interaction.response.send_message(
+            f"⚠️ Could not find a profile record for {user.mention} to reset.",
+            ephemeral=True
+        )
+        return
+
+    embed = discord.Embed(
+        title="🔄 Prompt Skips Reset",
+        description=f"All prompt skips have been reset for {user.mention}.",
+        color=discord.Color.green()
+    )
+    embed.add_field(name="Available Skips", value="`3 / 3`", inline=True)
+    embed.set_footer(text=f"Reset by admin {interaction.user.display_name}")
+
     await interaction.response.send_message(embed=embed)
 
 # ============================================================
