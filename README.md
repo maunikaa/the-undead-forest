@@ -1,4 +1,5 @@
 # The Undead Forest
+
 <img width="864" height="1821" alt="image" src="https://github.com/user-attachments/assets/6f1eb1c1-60ec-4064-b13d-2ce6c2a244bd" />
 
 A readathon bot created for discord.gg/VnNnzB545
@@ -26,3 +27,5 @@ A readathon bot created for discord.gg/VnNnzB545
 - /set_submission_channel - sets the channel to be used for claim submissions (should be viewable only to staff)
 - /set_response_channel - sets the channel to be used for claim responses - to ping user when claim has been approved or denied
 - /admin_reset_user - completely resets a user’s stats
+- /admin_skip_prompts - skips a prompt for a user, will award them half points
+- /reset_skips - resets the number of skips for a user

@@ -404,11 +404,12 @@ def sync_get_profile_data(user_id: int):
     cursor = connection.cursor()
     cursor.execute("SELECT current_location_idx, points, COALESCE(skip_count, 0) FROM users WHERE user_id=?", (user_id,))
     user_row = cursor.fetchone() or (0,0,0)
+    loc_index, points, skip_count = user_row
     cursor.execute("SELECT COUNT(*), COALESCE(SUM(page_count), 0) FROM books WHERE user_id=?", (user_id,))
     book_row = cursor.fetchone() or (0,0)
     cursor.execute("SELECT COUNT(*) FROM completed_prompts WHERE user_id=?", (user_id,))
     prompts_completed = cursor.fetchone()[0]
-    return user_row[0], user_row[1], user_row[2], book_row[0], book_row[1], prompts_completed
+    return loc_index, points, skip_count, book_row[0], book_row[1], prompts_completed
 
 
 def sync_get_prompt_statuses(user_id: int, location_id: str):
