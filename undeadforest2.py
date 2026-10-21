@@ -1708,7 +1708,7 @@ async def add_points_cmd(interaction: discord.Interaction, user: discord.Member,
     old_pts, new_pts = await add_points(user.id, amount)
     await interaction.response.send_message(
         f"Successfully added {amount} points to {user.mention}\n"
-        f"**Old points:** `{old_pts}`, **New points:** `{new_pts}`"
+        f"**Old points:** `{old_pts}`, **New points:** `{new_pts}`\n"
         f"**Reason:** {reason}", ephemeral=True
     )
 
@@ -1725,8 +1725,8 @@ async def add_points_cmd(interaction: discord.Interaction, user: discord.Member,
 async def remove_points_cmd(interaction: discord.Interaction, user: discord.Member, amount: app_commands.Range[int, 1, None], reason: str | None = None):
     old_pts, new_pts = await remove_points(user.id, amount)
     await interaction.response.send_message(
-        f"Successfully removed {amount} points from {user.mention}"
-        f"**Old points:** `{old_pts}`, **New points:** `{new_pts}`"
+        f"Successfully removed {amount} points from {user.mention}\n"
+        f"**Old points:** `{old_pts}`, **New points:** `{new_pts}`\n"
         f"**Reason:** {reason}", ephemeral=True
     )
 
