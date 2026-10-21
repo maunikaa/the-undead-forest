@@ -402,13 +402,13 @@ def sync_get_user_stats(user_id: int) -> tuple[int, int]:
 def sync_get_profile_data(user_id: int):
     connection = get_db()
     cursor = connection.cursor()
-    cursor.execute("SELECT current_location_idx, points FROM users WHERE user_id=?", (user_id,))
-    user_row = cursor.fetchone() or (0,0)
+    cursor.execute("SELECT current_location_idx, points, COALESCE(skip_count, 0) FROM users WHERE user_id=?", (user_id,))
+    user_row = cursor.fetchone() or (0,0,0)
     cursor.execute("SELECT COUNT(*), COALESCE(SUM(page_count), 0) FROM books WHERE user_id=?", (user_id,))
-    book_row = cursor.fetchone()
+    book_row = cursor.fetchone() or (0,0)
     cursor.execute("SELECT COUNT(*) FROM completed_prompts WHERE user_id=?", (user_id,))
     prompts_completed = cursor.fetchone()[0]
-    return user_row[0], user_row[1], book_row[0], book_row[1], prompts_completed
+    return user_row[0], user_row[1], user_row[2], book_row[0], book_row[1], prompts_completed
 
 
 def sync_get_prompt_statuses(user_id: int, location_id: str):
@@ -1084,7 +1084,7 @@ async def on_ready():
 @bot.tree.command(name="profile", description="View your progress, current level, and stats")
 async def profile_cmd(interaction: discord.Interaction, user: discord.Member | None = None):
     target = user 
-    loc_index, points, book_count, pages_read, prompts_done = await get_profile_data(target.id)
+    loc_index, points, skips_used, book_count, pages_read, prompts_done = await get_profile_data(target.id)
     total_prompts = sum(len(loc["prompts"]) for loc in LOCATIONS)
     
     current_loc_name = LOCATIONS[loc_index]["name"] if loc_index < len(LOCATIONS) else "Ultimate Survivor"
@@ -1093,6 +1093,7 @@ async def profile_cmd(interaction: discord.Interaction, user: discord.Member | N
     embed.add_field(name="Current Location", value=current_loc_name, inline=False)
     embed.add_field(name="Total Points", value=f"⭐ `{points}` points", inline=True)
     embed.add_field(name="Prompts Cleared", value=f"📜 `{prompts_done}` / `{total_prompts}`", inline=True)
+    embed.add_field(name="Prompt Skips", value=f"⏩ `{skips_used} / 3` used", inline=True)
     embed.add_field(name="Books Read", value=f"📚 `{book_count}`", inline=True)
     embed.add_field(name="Pages Read", value=f"📄 `{pages_read}`", inline=True)
     
