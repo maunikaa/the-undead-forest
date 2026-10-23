@@ -395,7 +395,6 @@ def sync_get_user_stats(user_id: int) -> tuple[int, int]:
         return row[0], row[1]
     cursor.execute("INSERT INTO users (user_id, current_location_idx, points) VALUES (?, 0, 0)", (user_id,))
     connection.commit()
-    connection.close()
     return 0,0
 
 
@@ -427,7 +426,6 @@ def sync_add_active_prompt(user_id: int, location_id: str, prompt_id: str):
     cursor = connection.cursor()
     cursor.execute("INSERT OR IGNORE INTO active_prompts (user_id, location_id, prompt_id) VALUES (?, ?, ?)", (user_id, location_id, prompt_id))
     connection.commit()
-    connection.close()
     
 
 def sync_approve_claim(user_id: int, location_id: str, prompt_id: str, proof_url: str, points: str):
@@ -437,7 +435,6 @@ def sync_approve_claim(user_id: int, location_id: str, prompt_id: str, proof_url
     cursor.execute("INSERT INTO completed_prompts (user_id, location_id, prompt_id, proof_url, points) VALUES (?, ?, ?, ?, ?)", (user_id, location_id, prompt_id, proof_url, points))
     cursor.execute("UPDATE users SET points = COALESCE(points, 0) + ? WHERE user_id=?", (points, user_id))
     connection.commit()
-    connection.close()
     
     
 def sync_advance_user_level(user_id: int, new_idx: int):
@@ -445,7 +442,6 @@ def sync_advance_user_level(user_id: int, new_idx: int):
     cursor = connection.cursor()
     cursor.execute("UPDATE users SET current_location_idx = ? WHERE user_id=?", (new_idx, user_id))
     connection.commit()
-    connection.close()
     
     
 def sync_save_pending_claim(message_id: int, user_id: int, location_id: str, prompt_id: str, proof_urls: list[str], points: str):
@@ -454,7 +450,6 @@ def sync_save_pending_claim(message_id: int, user_id: int, location_id: str, pro
     cursor = connection.cursor()
     cursor.execute("INSERT INTO pending_claims (message_id, user_id, location_id, prompt_id, proof_urls, points) VALUES (?, ?, ?, ?, ?, ?)", (message_id, user_id, location_id, prompt_id, joined_urls, points))
     connection.commit()
-    connection.close()
     
     
 def sync_get_and_clear_pending_claim(message_id: int):
@@ -465,7 +460,6 @@ def sync_get_and_clear_pending_claim(message_id: int):
     if row:
         cursor.execute("DELETE FROM pending_claims WHERE message_id=?", (message_id,))
         connection.commit()
-        connection.close()
     return row
 
 
@@ -475,7 +469,6 @@ def sync_log_book(user_id: int, title: str, author: str, page_count: int, rating
     cursor.execute("INSERT INTO books (user_id, title, author, page_count, rating, points) VALUES (?, ?, ?, ?, ?, ?)", (user_id, title, author, page_count, rating, points))
     cursor.execute("UPDATE users SET points = points + ? WHERE user_id = ?", (points, user_id))
     connection.commit()
-    connection.close() 
     
     
 def sync_get_user_books(user_id: int):
@@ -544,7 +537,6 @@ def sync_reset_user_stats(user_id: int):
     cursor.execute("DELETE from completed_prompts WHERE user_id=?", (user_id,))
     cursor.execute("DELETE from books WHERE user_id=?", (user_id,))
     connection.commit()
-    connection.close()
     
     
 def sync_set_guild_channel(guild_id: int, channel_type: str, channel_id: int):
@@ -553,8 +545,7 @@ def sync_set_guild_channel(guild_id: int, channel_type: str, channel_id: int):
     cursor.execute("INSERT OR IGNORE INTO server_settings (guild_id) VALUES (?)", (guild_id,))
     cursor.execute(f"UPDATE server_settings SET {channel_type} = ? WHERE guild_id = ?", (channel_id, guild_id))
     connection.commit()
-    connection.close()    
-    
+
     
 def sync_get_guild_settings(guild_id: int) -> tuple[int | None, int | None]:
     connection = get_db()
