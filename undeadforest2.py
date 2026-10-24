@@ -317,12 +317,13 @@ DB_FILE = "undead_forest.db"
 def get_db():
     connection = sqlite3.connect(DB_FILE)
     connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA busy_timeout = 30000;")
     return connection
 
 def setup_db():
     connection = get_db()
+    connection.execute("PRAGMA journal_mode=WAL;")
     cursor = connection.cursor()
-    
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS users (
                        user_id INTEGER PRIMARY KEY,
@@ -351,7 +352,7 @@ def setup_db():
     cursor.execute("DROP TABLE IF EXISTS pending_claims")
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS pending_claims (
-                       message_id INTEGER PRIMARY_KEY,
+                       message_id INTEGER PRIMARY KEY,
                        user_id INTEGER NOT NULL,
                        location_id TEXT NOT NULL,
                        prompt_id TEXT NOT NULL,
@@ -361,7 +362,7 @@ def setup_db():
                    """)
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS books (
-                       id INTEGER PRIMARY_KEY,
+                       id INTEGER PRIMARY KEY,
                        user_id INTEGER NOT NULL,
                        title TEXT NOT NULL,
                        author TEXT NOT NULL,
@@ -373,7 +374,7 @@ def setup_db():
                    """)
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS server_settings (
-                       guild_id INTEGER PRIMARY_KEY,
+                       guild_id INTEGER PRIMARY KEY,
                        submission_channel_id INTEGER,
                        response_channel_id INTEGER
                    )
