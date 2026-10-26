@@ -1519,9 +1519,11 @@ async def view_books_cmd(interaction: discord.Interaction):
     )
     
     if view.total_pages == 1:
-        await interaction.response.send_message(embed=view.build_embed())
+        embed = await view.build_embed()
+        await interaction.response.send_message(embed=embed)
     else:
-        await interaction.response.send_message(embed=view.build_embed(), view=view)
+        embed = await view.build_embed()
+        await interaction.response.send_message(embed=embed, view=view)
         
 
 # ============================================================
