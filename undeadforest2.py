@@ -472,6 +472,27 @@ def sync_get_user_books(user_id: int):
     cursor.execute("SELECT title, author, page_count, rating, points, logged_at FROM books WHERE user_id=? ORDER BY id DESC", (user_id,))
     return cursor.fetchall()
 
+async def delete_book_by_id(user_id: int, book_id: int):
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT id, title, points FROM books WHERE id = ? AND user_id = ?", (book_id, user_id,))
+    book = cursor.fetchone()
+    if not book:
+        return None
+    points_to_deduct = book['points']
+    book_title = book['title']
+    cursor.execute("DELETE FROM books WHERE id=? AND user_id=?", (book_id, user_id,))
+    cursor.execute("UPDATE users SET points = MAX(0, points - ?) WHERE user_id = ?", (points_to_deduct, user_id,))
+    cursor.execute("SELECT points FROM users WHERE user_id = ?", (user_id,))
+    updated_user = cursor.fetchone()
+    new_total_pts = updated_user['points'] if updated_user else 0
+    connection.commit()
+    return {
+        "title": book_title,
+        "deducted_points": points_to_deduct,
+        "new_total": new_total_pts
+    }
+
 
 def sync_get_books_autocomplete(user_id: int | str, query: str="") -> list[dict]:
     uid_clean = int(user_id)
@@ -1499,6 +1520,8 @@ async def delete_book_cmd(interaction: discord.Interaction, user: discord.User, 
     await interaction.response.send_message(embed=embed, ephemeral=True)
 '''
 
+
+
 # ============================================================
 # View Books
 # ============================================================
@@ -1524,6 +1547,43 @@ async def view_books_cmd(interaction: discord.Interaction):
     else:
         embed = await view.build_embed()
         await interaction.response.send_message(embed=embed, view=view)
+        
+        
+# ============================================================
+# Delete Books
+# ============================================================
+
+@bot.tree.command(name="delete_book", description="Delete a book from your book log")
+@app_commands.describe(book_id="Select the book you want to remove")
+# @app_commands.autocomplete(book_id = user_books_autocomplete)
+async def delete_book_cmd(interaction: discord.Interaction, book_id: int):
+    result = await delete_book_by_id(interaction.user.id, book_id)
+    if not result:
+        await interaction.response.send_message("❌ Book not found in your list.", ephemeral=True)
+        return
+    
+    embed = discord.Embed(
+        title="🗑️ Book Deleted",
+        description=f"**{result['title']}** has been removed from your book log.",
+        color = discord.Color.red()
+    )
+    embed.add_field(name="Points Deducted", value=f"-{result['deducted_points']} points", inline=True)
+    embed.add_field(name="New Total Points", value=f"{result['new_total']} points", inline=True)
+    await interaction.response.send_message(embed=embed)
+    
+@delete_book_cmd.autocomplete("book_id")
+async def user_books_autocomplete(interaction: discord.Interaction, current: str):
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT id, title, author, points FROM books WHERE user_id = ? ORDER BY id DESC LIMIT 25", (interaction.user.id,))
+    books = cursor.fetchall()
+    
+    choices = []
+    for b in books:
+        label = f"{b['title']} by {b['author']} ({b['points']} pts)"
+        if current.lower() in label.lower():
+            choices.append(app_commands.Choice(name=label[:100], value=b['id']))
+    return choices
         
 
 # ============================================================
