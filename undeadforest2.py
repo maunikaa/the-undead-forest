@@ -493,7 +493,7 @@ async def delete_book_by_id(user_id: int, book_id: int):
         "new_total": new_total_pts
     }
 
-
+"""
 def sync_get_books_autocomplete(user_id: int | str, query: str="") -> list[dict]:
     uid_clean = int(user_id)
     search = f"%{query.strip()}%"
@@ -543,6 +543,7 @@ def sync_delete_book(user_id: int | str, book_id: str) -> tuple[str, int, int] |
     points_row = cursor.fetchone()
     updated_points = points_row[0] if points_row else 0
     return title, points, updated_points
+"""
     
 
 def sync_reset_user_stats(user_id: int):
