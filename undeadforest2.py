@@ -1802,6 +1802,82 @@ async def admin_reset_user_error(interaction: discord.Interaction, error: app_co
         await interaction.response.send_message("You do not have permission to use this command", ephemeral=True)
 
 
+@bot.tree.command(
+    name="admin_advance_user",
+    description="Admin: Manually advance a user to the next location or a specific location.",
+)
+@app_commands.describe(
+    user="The user to advance",
+    location_index="Optional: Specific location index (0-based) to set them to",
+)
+@app_commands.checks.has_permissions(administrator=True)
+async def admin_advance_user_cmd(
+    interaction: discord.Interaction,
+    user: discord.Member,
+    location_index: int | None = None,
+):
+  conn = get_db()
+  cursor = conn.cursor()
+
+  # 1. Fetch current index
+  cursor.execute(
+      "SELECT current_location_idx FROM users WHERE user_id = ? OR user_id = ?",
+      (user.id, str(user.id)),
+  )
+  row = cursor.fetchone()
+
+  old_idx = (
+      row["current_location_idx"]
+      if row and row["current_location_idx"] is not None
+      else 0
+  )
+
+  # 2. Determine target index
+  if location_index is not None:
+    new_idx = location_index
+  else:
+    new_idx = old_idx + 1
+
+  # Clamp between 0 and maximum location index
+  max_idx = len(LOCATIONS) - 1
+  new_idx = max(0, min(new_idx, max_idx))
+
+  # 3. Update or insert
+  cursor.execute(
+      """
+        INSERT INTO users (user_id, current_location_idx, points, skip_count)
+        VALUES (?, ?, 0, 0)
+        ON CONFLICT(user_id) DO UPDATE SET current_location_idx = ?
+    """,
+      (user.id, new_idx, new_idx),
+  )
+  conn.commit()
+  conn.close()
+
+  old_loc_name = (
+      LOCATIONS[old_idx]["name"] if old_idx < len(LOCATIONS) else "Unknown"
+  )
+  new_loc_name = (
+      LOCATIONS[new_idx]["name"] if new_idx < len(LOCATIONS) else "Unknown"
+  )
+
+  await interaction.response.send_message(
+      f"✅ Successfully updated location for {user.mention}!\n"
+      f"• **Previous Area:** {old_loc_name} (`Index {old_idx}`)\n"
+      f"• **New Area:** {new_loc_name} (`Index {new_idx}`)",
+      ephemeral=True,
+  )
+
+
+@admin_advance_user_cmd.error
+async def admin_advance_user_error(
+    interaction: discord.Interaction, error: app_commands.AppCommandError
+):
+  if isinstance(error, app_commands.MissingPermissions):
+    await interaction.response.send_message(
+        "❌ You do not have permission to use this command.", ephemeral=True
+    )
+
 
 
 # ============================================================
