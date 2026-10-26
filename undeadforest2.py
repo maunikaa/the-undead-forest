@@ -1572,7 +1572,7 @@ async def delete_book_cmd(interaction: discord.Interaction, book_id: int):
     embed.add_field(name="New Total Points", value=f"{result['new_total']} points", inline=True)
     await interaction.response.send_message(embed=embed)
     
-def sync_get_user_books(user_id: int):
+def sync_get_user_books_autocomplete(user_id: int):
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -1582,7 +1582,7 @@ def sync_get_user_books(user_id: int):
     
 @delete_book_cmd.autocomplete("book_id")
 async def user_books_autocomplete(interaction: discord.Interaction, current: str):
-    books = await asyncio.to_thread(sync_get_user_books, interaction.user.id)
+    books = await asyncio.to_thread(sync_get_user_books_autocomplete, interaction.user.id)
     current_lower = current.strip().lower()
     
     choices = []
