@@ -481,7 +481,7 @@ async def delete_book_by_id(user_id: int, book_id: int):
         return None
     points_to_deduct = book['points']
     book_title = book['title']
-    cursor.execute("DELETE FROM books WHERE (id = ? OR rowid = ?) AND user_id=?", (book_id, user_id,))
+    cursor.execute("DELETE FROM books WHERE (id = ? OR rowid = ?) AND user_id=?", (book_id, book_id, user_id,))
     cursor.execute("UPDATE users SET points = MAX(0, points - ?) WHERE user_id = ?", (points_to_deduct, user_id,))
     cursor.execute("SELECT points FROM users WHERE user_id = ?", (user_id,))
     updated_user = cursor.fetchone()
