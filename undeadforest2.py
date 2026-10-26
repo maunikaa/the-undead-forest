@@ -1571,19 +1571,25 @@ async def delete_book_cmd(interaction: discord.Interaction, book_id: int):
     embed.add_field(name="New Total Points", value=f"{result['new_total']} points", inline=True)
     await interaction.response.send_message(embed=embed)
     
+def sync_get_user_books(user_id: int):
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+           "SELECT id, title, author, points FROM books WHERE user_id = ? OR user_id = ? ORDER BY id DESC LIMIT 25",
+           (user_id, str(user_id),))
+        return cursor.fetchall()
+    
 @delete_book_cmd.autocomplete("book_id")
 async def user_books_autocomplete(interaction: discord.Interaction, current: str):
-    connection = get_db()
-    cursor = connection.cursor()
-    cursor.execute("SELECT id, title, author, points FROM books WHERE user_id = ? ORDER BY id DESC LIMIT 25", (interaction.user.id,))
-    books = cursor.fetchall()
+    books = await asyncio.to_thread(sync_get_user_books, interaction.user.id)
+    current_lower = current.strip().lower()
     
     choices = []
     for b in books:
         if b["id"] is None:
             continue
         label = f"{b['title']} by {b['author']} ({b['points']} pts)"
-        if current.lower() in label.lower():
+        if not current_lower or current_lower in label.lower():
             choices.append(app_commands.Choice(name=label[:100], value=b['id']))
     return choices
         
