@@ -475,7 +475,7 @@ def sync_get_user_books(user_id: int):
 async def delete_book_by_id(user_id: int, book_id: int):
     connection = get_db()
     cursor = connection.cursor()
-    cursor.execute("SELECT COALESCE(id, rowid) AS book_id, title, points FROM books WHERE (id = ? OR rowid = ?) AND user_id = ?", (book_id, book_id, user_id,))
+    cursor.execute("SELECT COALESCE(id, rowid) AS id, title, points FROM books WHERE (id = ? OR rowid = ?) AND user_id = ?", (book_id, book_id, user_id,))
     book = cursor.fetchone()
     if not book:
         return None
@@ -1576,7 +1576,7 @@ async def delete_book_cmd(interaction: discord.Interaction, book_id: int):
 async def user_books_autocomplete(interaction: discord.Interaction, current: str):
     connection = get_db()
     cursor = connection.cursor()
-    cursor.execute("SELECT COALESCE(id, rowid) AS book_id, title, author, points FROM books WHERE user_id = ? ORDER BY rowid DESC LIMIT 25", (interaction.user.id,))
+    cursor.execute("SELECT COALESCE(id, rowid) AS id, title, author, points FROM books WHERE user_id = ? ORDER BY rowid DESC LIMIT 25", (interaction.user.id,))
     books = cursor.fetchall()
     
     current_lower = current.strip().lower()
