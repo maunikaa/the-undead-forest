@@ -475,7 +475,7 @@ def sync_get_user_books(user_id: int):
 async def delete_book_by_id(user_id: int, book_id: int):
     connection = get_db()
     cursor = connection.cursor()
-    cursor.execute("SELECT id, title, points FROM books WHERE id = ? AND user_id = ?", (book_id, user_id,))
+    cursor.execute("SELECT COALESCE(id, rowid) AS book_id, title, points FROM books WHERE (id = ? OR rowid = ?) AND user_id = ?", (book_id, book_id, user_id,))
     book = cursor.fetchone()
     if not book:
         return None
@@ -1572,17 +1572,13 @@ async def delete_book_cmd(interaction: discord.Interaction, book_id: int):
     embed.add_field(name="New Total Points", value=f"{result['new_total']} points", inline=True)
     await interaction.response.send_message(embed=embed)
     
-def sync_get_user_books_autocomplete(user_id: int):
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-           "SELECT id, title, author, points FROM books WHERE user_id = ? OR user_id = ? ORDER BY id DESC LIMIT 25",
-           (user_id, str(user_id),))
-        return cursor.fetchall()
-    
 @delete_book_cmd.autocomplete("book_id")
 async def user_books_autocomplete(interaction: discord.Interaction, current: str):
-    books = await asyncio.to_thread(sync_get_user_books_autocomplete, interaction.user.id)
+    connection = get_db()
+    cursor = connection.cursor()
+    cursor.execute("SELECT COALESCE(id, rowid) AS book_id, title, author, points FROM books WHERE user_id = ? ORDER BY rowid DESC LIMIT 25", (interaction.user.id,))
+    books = cursor.fetchall()
+    
     current_lower = current.strip().lower()
     
     choices = []
