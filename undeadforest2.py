@@ -1580,6 +1580,8 @@ async def user_books_autocomplete(interaction: discord.Interaction, current: str
     
     choices = []
     for b in books:
+        if b["id"] is None:
+            continue
         label = f"{b['title']} by {b['author']} ({b['points']} pts)"
         if current.lower() in label.lower():
             choices.append(app_commands.Choice(name=label[:100], value=b['id']))
