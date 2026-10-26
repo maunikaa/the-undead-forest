@@ -10,7 +10,6 @@ from discord import app_commands
 from discord.ext import commands
 from discord import Color
 from dotenv import load_dotenv
-
 import logging
 
 # Configure logger to append output to activity.log
@@ -25,11 +24,6 @@ logging.basicConfig(
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 logging.getLogger("").addHandler(console)
-
-# TODO:
-# - set up multiple img slots for claim cmd
-# - add admin cmds to add/remove points
-# - add admin cmds to add prompts to active prompts
 
 load_dotenv()
 
@@ -958,7 +952,7 @@ class BookLogView(discord.ui.View):
         self.prev_btn.disabled = self.current_page == 0
         self.next_btn.disabled = self.current_page >= self.total_pages - 1
     
-    def build_embed(self) -> discord.Embed:
+    async def build_embed(self) -> discord.Embed:
         embed = discord.Embed(
             title=f"📚 Survivor Book Log: {self.target_name}",
             description=f"Total Books Logged: **{len(self.books)}**",
