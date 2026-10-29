@@ -1235,6 +1235,7 @@ async def hideout_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "final-girl-hideout") 
     
 @bot.tree.command(name="cemetery", description="Draw a prompt from The Haunted Cemetery")
+@app_commands.checks.cooldown(1, 3600.0, key=lambda i: (i.guild_id, i.user.id))
 async def cemetery_cmd(interaction: discord.Interaction):
     await handle_draw(interaction, "haunted-cemetery")
 
